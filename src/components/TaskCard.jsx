@@ -1,20 +1,24 @@
-import { MapPin, Clock } from "lucide-react";
+import { Clock, MapPin } from "lucide-react";
 
 function TaskCard({
   title,
   budget,
   deadline,
   postedBy,
-  location
+  location,
 }) {
-
   return (
     <div className="task-card">
+      <div className="task-card-header">
+        <h3>{title}</h3>
 
-      <h3>{title}</h3>
+        <span className="task-category">
+          Paid
+        </span>
+      </div>
 
       <p className="task-budget">
-        Budget: {budget}
+        Reward: {budget}
       </p>
 
       <div className="task-detail">
@@ -32,9 +36,8 @@ function TaskCard({
       </p>
 
       <button className="small-button">
-        Apply
+        Accept
       </button>
-
     </div>
   );
 }
