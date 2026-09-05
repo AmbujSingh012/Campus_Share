@@ -13,11 +13,17 @@ function App() {
     <Routes>
       <Route path="/" element={<Login />} />
       <Route path="/login" element={<Login />} />
+
       <Route path="/home" element={<Home />} />
       <Route path="/resources" element={<Resources />} />
       <Route path="/tasks" element={<Tasks />} />
       <Route path="/profile" element={<Profile />} />
+
+      {/* Post Resource */}
       <Route path="/post" element={<PostResource />} />
+      <Route path="/post-resource" element={<PostResource />} />
+
+      {/* Task Payment */}
       <Route path="/task-payment" element={<TaskPayment />} />
     </Routes>
   );
