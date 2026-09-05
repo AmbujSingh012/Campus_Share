@@ -1,94 +1,145 @@
-import { ChevronDown } from "lucide-react";
-
-import Header from "../components/Header";
-import BottomNavigation from "../components/BottomNavigation";
-import SearchBar from "../components/SearchBar";
-import ResourceCard from "../components/ResourceCard";
+import { useEffect, useState } from "react";
+import { getResources } from "../api/api";
 
 function Resources() {
-  const resources = [
-    {
-      name: "Scientific Calculator",
-      category: "Electronics",
-      owner: "Rahul",
-      rating: "4.8",
-    },
-    {
-      name: "USB-C Charger",
-      category: "Electronics",
-      owner: "Priya",
-      rating: "4.6",
-    },
-    {
-      name: "Operating System Notes",
-      category: "Study Materials",
-      owner: "Aman",
-      rating: "4.9",
-    },
-    {
-      name: "Engineering Drawing Kit",
-      category: "Study Materials",
-      owner: "Neha",
-      rating: "4.7",
-    },
-    {
-      name: "Football",
-      category: "Sports",
-      owner: "Arjun",
-      rating: "4.5",
-    },
-  ];
+  const [resources, setResources] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function loadResources() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const data = await getResources();
+
+        if (data.success) {
+          setResources(data.resources);
+        } else {
+          setError("Failed to load resources");
+        }
+      } catch (err) {
+        console.error("Resources API error:", err);
+        setError("Unable to connect to backend");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadResources();
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={styles.container}>
+        <h1>Resources</h1>
+        <p>Loading resources...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={styles.container}>
+        <h1>Resources</h1>
+        <p style={styles.error}>{error}</p>
+        <p>
+          Make sure the CampusShare backend is running on port 3000.
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="page">
-      <Header title="Resources" showBack />
+    <div style={styles.container}>
+      <h1>Campus Resources</h1>
 
-      <main className="page-content">
-        <SearchBar placeholder="Search resources..." />
+      <p style={styles.subtitle}>
+        Resources loaded from the CampusShare backend.
+      </p>
 
-        <div className="category-filter">
-          <button className="category-pill active">
-            All
-          </button>
+      {resources.length === 0 ? (
+        <p>No resources available.</p>
+      ) : (
+        <div style={styles.grid}>
+          {resources.map((resource) => (
+            <div key={resource.id} style={styles.card}>
+              <h2>{resource.title}</h2>
 
-          <button className="category-pill">
-            Books
-          </button>
+              <p style={styles.description}>
+                {resource.description || "No description provided"}
+              </p>
 
-          <button className="category-pill">
-            Electronics
-          </button>
+              <p>
+                <strong>Category:</strong>{" "}
+                {resource.category || "Not specified"}
+              </p>
 
-          <button className="category-pill">
-            Sports
-          </button>
-        </div>
+              <p>
+                <strong>Location:</strong>{" "}
+                {resource.location || "Not specified"}
+              </p>
 
-        <div className="sort-row">
-          <span>Resources</span>
+              <p>
+                <strong>Posted by User ID:</strong>{" "}
+                {resource.postedBy || "Not specified"}
+              </p>
 
-          <button className="sort-button">
-            Recommended
-            <ChevronDown size={15} />
-          </button>
-        </div>
+              <p>
+                <strong>Availability:</strong>{" "}
+                {resource.availability || "Not specified"}
+              </p>
 
-        <div className="resource-list">
-          {resources.map((resource, index) => (
-            <ResourceCard
-              key={index}
-              name={resource.name}
-              category={resource.category}
-              owner={resource.owner}
-              rating={resource.rating}
-            />
+              <p>
+                <strong>Created:</strong>{" "}
+                {resource.created_at
+                  ? new Date(resource.created_at).toLocaleString()
+                  : "Not available"}
+              </p>
+            </div>
           ))}
         </div>
-      </main>
-
-      <BottomNavigation active="resources" />
+      )}
     </div>
   );
 }
+
+const styles = {
+  container: {
+    padding: "30px",
+    maxWidth: "1200px",
+    margin: "0 auto",
+  },
+
+  subtitle: {
+    color: "#666",
+    marginBottom: "25px",
+  },
+
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gap: "20px",
+  },
+
+  card: {
+    backgroundColor: "#ffffff",
+    borderRadius: "12px",
+    padding: "20px",
+    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
+    border: "1px solid #e5e7eb",
+  },
+
+  description: {
+    color: "#555",
+    lineHeight: "1.5",
+  },
+
+  error: {
+    color: "red",
+    fontWeight: "600",
+  },
+};
 
 export default Resources;
