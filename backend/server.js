@@ -2,6 +2,11 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
+const authRoutes = require("./routes/authRoutes");
+const resourceRoutes = require("./routes/resourceRoutes");
+const taskRoutes = require("./routes/taskRoutes");
+const profileRoutes = require("./routes/profileRoutes");
+
 const app = express();
 
 const PORT = process.env.PORT || 3000;
@@ -10,7 +15,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Test route
+// Home / health check
 app.get("/", (req, res) => {
   res.json({
     success: true,
@@ -18,11 +23,25 @@ app.get("/", (req, res) => {
   });
 });
 
-// HTTP 402 demonstration route
+// HTTP 402 test route
 app.get("/api/payment-test", (req, res) => {
   res.status(402).json({
     success: false,
     message: "Payment Required",
+  });
+});
+
+// API Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/resources", resourceRoutes);
+app.use("/api/tasks", taskRoutes);
+app.use("/api/profile", profileRoutes);
+
+// Handle unknown routes
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found",
   });
 });
 
