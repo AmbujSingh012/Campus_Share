@@ -1,9 +1,17 @@
+import { useState } from "react";
+import PaymentModal from "../components/PaymentModal";
 import Header from "../components/Header";
 import BottomNavigation from "../components/BottomNavigation";
 import SearchBar from "../components/SearchBar";
 import TaskCard from "../components/TaskCard";
 
 function Tasks() {
+  const [showPayment, setShowPayment] = useState(false);
+const [selectedTask, setSelectedTask] = useState(null);
+const handleApply = (task) => {
+  setSelectedTask(task);
+  setShowPayment(true);
+};
   const tasks = [
     {
       title: "Print OS Notes",
@@ -38,6 +46,16 @@ function Tasks() {
   return (
     <div className="page">
       <Header title="Tasks" showBack />
+      <PaymentModal
+  isOpen={showPayment}
+  onClose={() => setShowPayment(false)}
+  taskTitle={selectedTask?.title}
+  amount={
+    typeof selectedTask?.budget === "string"
+      ? selectedTask.budget.replace(" USDC", "")
+      : selectedTask?.budget || "0.10"
+  }
+/>
 
       <main className="page-content">
         <SearchBar placeholder="Search tasks..." />
@@ -67,13 +85,14 @@ function Tasks() {
         <div className="task-list">
           {tasks.map((task, index) => (
             <TaskCard
-              key={index}
-              title={task.title}
-              budget={task.budget}
-              deadline={task.deadline}
-              postedBy={task.postedBy}
-              location={task.location}
-            />
+  id={task.id}
+  title={task.title}
+  budget={task.budget}
+  deadline={task.deadline}
+  postedBy={task.postedBy}
+  location={task.location}
+  onApply={handleApply}
+   />
           ))}
         </div>
       </main>

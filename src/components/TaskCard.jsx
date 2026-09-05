@@ -1,11 +1,13 @@
 import { Clock, MapPin } from "lucide-react";
 
 function TaskCard({
+  id,
   title,
   budget,
   deadline,
   postedBy,
   location,
+  onApply,
 }) {
   return (
     <div className="task-card">
@@ -35,9 +37,21 @@ function TaskCard({
         Posted by: {postedBy}
       </p>
 
-      <button className="small-button">
-        Accept
-      </button>
+      <button
+  className="small-button"
+  onClick={() =>
+    onApply({
+      id,
+      title,
+      budget,
+      deadline,
+      postedBy,
+      location,
+    })
+  }
+>
+  Apply
+</button>
     </div>
   );
 }
