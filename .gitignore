@@ -1,0 +1,10 @@
+node_modules/
+.env
+*.log
+
+# x402 test wallet/client
+x402-test-client/
+
+# Day 4 backup files
+server-day3-backup.js
+server-day4-current.js
