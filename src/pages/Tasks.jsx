@@ -5,15 +5,20 @@ import BottomNavigation from "../components/BottomNavigation";
 import SearchBar from "../components/SearchBar";
 import TaskCard from "../components/TaskCard";
 import "../css/TaskPaymentStatus.css";
+import { useNavigate } from "react-router-dom";
 
 function Tasks() {
+  const navigate = useNavigate();
   const [showPayment, setShowPayment] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
 
   const handleApply = (task) => {
-    setSelectedTask(task);
-    setShowPayment(true);
-  };
+  navigate("/task-payment", {
+    state: {
+      task: task,
+    },
+  });
+};
 
   const tasks = [
     {
@@ -110,14 +115,15 @@ function Tasks() {
 
               {/* Existing Task Card */}
               <TaskCard
-                id={task.id}
-                title={task.title}
-                budget={task.budget}
-                deadline={task.deadline}
-                postedBy={task.postedBy}
-                location={task.location}
-                onApply={() => handleApply(task)}
-              />
+  key={task.id}
+  id={task.id}
+  title={task.title}
+  budget={task.budget}
+  deadline={task.deadline}
+  postedBy={task.postedBy}
+  location={task.location}
+  onApply={() => handleApply(task)}
+/>
 
               {/* Day 5 Reward & Payment Information */}
               <div className="task-payment-info">

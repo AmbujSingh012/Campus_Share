@@ -1,0 +1,344 @@
+.payment-page {
+  min-height: 100vh;
+  background: var(--background, #f8fafc);
+}
+
+.payment-header {
+  height: 64px;
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 20px;
+
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.payment-header h1 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.payment-back {
+  width: 40px;
+  height: 40px;
+
+  border: none;
+  background: transparent;
+
+  font-size: 26px;
+  color: #111827;
+
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-space {
+  width: 40px;
+}
+
+.payment-content {
+  max-width: 600px;
+  margin: 0 auto;
+
+  padding: 30px 20px;
+}
+
+.payment-task-card {
+  background: white;
+
+  border-radius: 16px;
+
+  padding: 28px;
+
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+}
+
+.task-payment-icon {
+  width: 64px;
+  height: 64px;
+
+  margin: 0 auto 18px;
+
+  border-radius: 50%;
+
+  background: #eff6ff;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 30px;
+}
+
+.payment-task-card h2 {
+  text-align: center;
+
+  font-size: 24px;
+
+  margin: 0 0 8px;
+
+  color: #111827;
+}
+
+.payment-description {
+  text-align: center;
+
+  color: #6b7280;
+
+  margin-bottom: 25px;
+}
+
+.reward-section {
+  background: #eff6ff;
+
+  border-radius: 12px;
+
+  padding: 20px;
+
+  text-align: center;
+
+  margin-bottom: 24px;
+}
+
+.reward-label {
+  color: #6b7280;
+
+  font-size: 14px;
+
+  margin-bottom: 6px;
+}
+
+.reward-amount {
+  color: #2563eb;
+
+  font-size: 30px;
+
+  font-weight: 700;
+}
+
+.task-details {
+  border-top: 1px solid #e5e7eb;
+
+  border-bottom: 1px solid #e5e7eb;
+
+  padding: 15px 0;
+
+  margin-bottom: 20px;
+}
+
+.detail-row {
+  display: flex;
+
+  justify-content: space-between;
+
+  align-items: center;
+
+  padding: 9px 0;
+
+  font-size: 14px;
+}
+
+.detail-row span {
+  color: #6b7280;
+}
+
+.detail-row strong {
+  color: #111827;
+
+  font-weight: 500;
+}
+
+.payment-status-section {
+  display: flex;
+
+  justify-content: space-between;
+
+  align-items: center;
+
+  margin-bottom: 24px;
+}
+
+.status-label {
+  color: #374151;
+
+  font-size: 14px;
+
+  font-weight: 500;
+}
+
+.payment-status {
+  padding: 6px 12px;
+
+  border-radius: 20px;
+
+  font-size: 13px;
+
+  font-weight: 600;
+}
+
+.status-required {
+  background: #fef3c7;
+
+  color: #92400e;
+}
+
+.status-processing {
+  background: #dbeafe;
+
+  color: #1d4ed8;
+}
+
+.status-success {
+  background: #dcfce7;
+
+  color: #166534;
+}
+
+.pay-button {
+  width: 100%;
+
+  border: none;
+
+  border-radius: 10px;
+
+  padding: 14px;
+
+  background: #2563eb;
+
+  color: white;
+
+  font-size: 16px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition: 0.2s;
+}
+
+.pay-button:hover {
+  background: #1d4ed8;
+}
+
+.processing-button {
+  opacity: 0.7;
+
+  cursor: not-allowed;
+}
+
+.success-section {
+  text-align: center;
+
+  padding-top: 10px;
+}
+
+.success-icon {
+  width: 60px;
+  height: 60px;
+
+  margin: 0 auto 15px;
+
+  border-radius: 50%;
+
+  background: #dcfce7;
+
+  color: #16a34a;
+
+  font-size: 30px;
+
+  font-weight: 700;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.success-section h3 {
+  margin: 0 0 8px;
+
+  font-size: 20px;
+
+  color: #166534;
+}
+
+.success-section p {
+  color: #6b7280;
+
+  font-size: 14px;
+
+  margin-bottom: 20px;
+}
+
+.continue-button,
+.back-button {
+  border: none;
+
+  border-radius: 10px;
+
+  padding: 12px 20px;
+
+  background: #2563eb;
+
+  color: white;
+
+  font-size: 15px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.payment-error-card {
+  max-width: 500px;
+
+  margin: 100px auto;
+
+  background: white;
+
+  padding: 30px;
+
+  border-radius: 16px;
+
+  text-align: center;
+
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+}
+
+.payment-error-card h2 {
+  color: #111827;
+}
+
+.payment-error-card p {
+  color: #6b7280;
+
+  margin-bottom: 20px;
+}
+
+@media (max-width: 600px) {
+  .payment-content {
+    padding: 20px 15px;
+  }
+
+  .payment-task-card {
+    padding: 22px 18px;
+  }
+
+  .payment-task-card h2 {
+    font-size: 21px;
+  }
+
+  .reward-amount {
+    font-size: 26px;
+  }
+}

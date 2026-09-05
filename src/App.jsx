@@ -6,6 +6,7 @@ import Resources from "./pages/Resources";
 import PostResource from "./pages/PostResource";
 import Tasks from "./pages/Tasks";
 import Profile from "./pages/Profile";
+import TaskPayment from "./pages/TaskPayment";
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
       <Route path="/tasks" element={<Tasks />} />
 
       <Route path="/profile" element={<Profile />} />
+      <Route path="/task-payment" element={<TaskPayment />} />
     </Routes>
   );
 }
