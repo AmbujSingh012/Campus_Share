@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
+const db = require("./db");
 
 const authRoutes = require("./routes/authRoutes");
 const resourceRoutes = require("./routes/resourceRoutes");
@@ -46,6 +47,14 @@ app.use((req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`CampusShare Backend running on port ${PORT}`);
+
+  try {
+    const connection = await db.getConnection();
+    console.log("MySQL connected successfully");
+    connection.release();
+  } catch (error) {
+    console.error("MySQL connection failed:", error.message);
+  }
 });

@@ -1,45 +1,75 @@
+
 const express = require("express");
+const db = require("../db");
+
 const router = express.Router();
 
-const { users, tasks, resources, acceptances } = require("../data/store");
-
 // GET PROFILE
-router.get("/:id", (req, res) => {
-  const userId = Number(req.params.id);
+router.get("/:id", async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
 
-  const user = users.find((item) => item.id === userId);
+    if (!Number.isInteger(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID",
+      });
+    }
 
-  if (!user) {
-    return res.status(404).json({
+    const [users] = await db.execute(
+      `SELECT id, name, email, location, availability, created_at
+       FROM users
+       WHERE id = ?`,
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const user = users[0];
+
+    const [taskCount] = await db.execute(
+      "SELECT COUNT(*) AS count FROM tasks WHERE user_id = ?",
+      [userId]
+    );
+
+    const [resourceCount] = await db.execute(
+      "SELECT COUNT(*) AS count FROM resources WHERE user_id = ?",
+      [userId]
+    );
+
+    const [acceptedTaskCount] = await db.execute(
+      `SELECT COUNT(*) AS count
+       FROM acceptances
+       WHERE helper_id = ?`,
+      [userId]
+    );
+
+    res.json({
+      success: true,
+      profile: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        location: user.location,
+        availability: user.availability,
+        postedTasks: Number(taskCount[0].count),
+        postedResources: Number(resourceCount[0].count),
+        acceptedTasks: Number(acceptedTaskCount[0].count),
+      },
+    });
+  } catch (error) {
+    console.error("Get profile error:", error);
+
+    res.status(500).json({
       success: false,
-      message: "User not found",
+      message: "Server error while fetching profile",
     });
   }
-
-  const userTasks = tasks.filter(
-    (task) => task.postedBy === userId
-  );
-
-  const userResources = resources.filter(
-    (resource) => resource.postedBy === userId
-  );
-
-  const acceptedTasks = acceptances.filter(
-    (acceptance) => acceptance.userId === userId
-  );
-
-  res.json({
-    success: true,
-    profile: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      wallet_address: user.wallet_address,
-      postedTasks: userTasks.length,
-      postedResources: userResources.length,
-      acceptedTasks: acceptedTasks.length,
-    },
-  });
 });
 
 module.exports = router;
