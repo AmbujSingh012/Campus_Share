@@ -2,6 +2,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import Header from "../components/Header";
+import BottomNavigation from "../components/BottomNavigation";
+import ResourceCard from "../components/ResourceCard";
 import { getResources } from "../api/api";
 
 function Resources() {
@@ -10,10 +13,7 @@ function Resources() {
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
-  // Store borrowed resources for the current frontend session
-  const [borrowedResources, setBorrowedResources] =
-    useState({});
+  const [borrowedResources, setBorrowedResources] = useState({});
 
   useEffect(() => {
     async function loadResources() {
@@ -38,7 +38,6 @@ function Resources() {
 
     loadResources();
 
-    // Load previously borrowed resources
     const savedBorrowed =
       JSON.parse(
         localStorage.getItem("campusshareBorrowedResources")
@@ -67,295 +66,189 @@ function Resources() {
 
   if (loading) {
     return (
-      <div style={styles.container}>
-        <h1>Resources</h1>
-        <p>Loading resources...</p>
+      <div className="page">
+        <Header title="CampusShare" />
+
+        <main className="page-content">
+          <h2>Campus Resources</h2>
+          <p>Loading resources...</p>
+        </main>
+
+        <BottomNavigation active="resources" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={styles.container}>
-        <h1>Resources</h1>
+      <div className="page">
+        <Header title="CampusShare" />
 
-        <p style={styles.error}>
-          {error}
-        </p>
+        <main className="page-content">
+          <h2>Campus Resources</h2>
 
-        <p>
-          Make sure the CampusShare backend is running
-          on port 3000.
-        </p>
+          <p style={{ color: "red", fontWeight: "600" }}>
+            {error}
+          </p>
+
+          <p>
+            Make sure the CampusShare backend is running
+            on port 3000.
+          </p>
+        </main>
+
+        <BottomNavigation active="resources" />
       </div>
     );
   }
 
   return (
-    <div style={styles.container}>
+    <div className="page">
+      <Header title="CampusShare" />
 
-      {/* Page Header */}
-      <div style={styles.header}>
-
-        <div>
-          <h1>Campus Resources</h1>
-
-          <p style={styles.subtitle}>
-            Resources loaded from the CampusShare backend.
+      <main className="page-content">
+        <div className="welcome-section">
+          <h2>Campus Resources</h2>
+          <p>
+            Find useful resources shared by students.
           </p>
         </div>
 
-        {/* Post Resource Button */}
         <button
-          style={styles.postButton}
+          className="quick-action post-action"
           onClick={handlePostResource}
+          style={{
+            width: "100%",
+            marginBottom: "20px",
+          }}
         >
           + Post Resource
         </button>
 
-      </div>
+        {resources.length === 0 ? (
+          <div className="resource-card">
+            <div className="resource-info">
+              <h3>No resources available</h3>
+              <p className="category">
+                Be the first student to post a resource.
+              </p>
 
-      {resources.length === 0 ? (
-        <div style={styles.emptyState}>
-          <h2>No resources available</h2>
-
-          <p>
-            Be the first student to post a resource.
-          </p>
-
-          <button
-            style={styles.postButton}
-            onClick={handlePostResource}
-          >
-            + Post Resource
-          </button>
-        </div>
-      ) : (
-        <div style={styles.grid}>
-
-          {resources.map((resource) => {
-
-            const isBorrowed =
-              borrowedResources[resource.id];
-
-            return (
-              <div
-                key={resource.id}
-                style={styles.card}
+              <button
+                className="small-button"
+                onClick={handlePostResource}
               >
+                + Post Resource
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="resource-list">
+            {resources.map((resource) => {
+              const isBorrowed =
+                borrowedResources[resource.id];
 
-                {/* Resource Title */}
-                <h2>
-                  {resource.title}
-                </h2>
-
-                {/* Description */}
-                <p style={styles.description}>
-                  {resource.description ||
-                    "No description provided"}
-                </p>
-
-                {/* Category */}
-                <p>
-                  <strong>Category:</strong>{" "}
-                  {resource.category ||
-                    "Not specified"}
-                </p>
-
-                {/* Location */}
-                <p>
-                  <strong>Location:</strong>{" "}
-                  {resource.location ||
-                    "Not specified"}
-                </p>
-
-                {/* Posted By */}
-                <p>
-                  <strong>
-                    Posted by User ID:
-                  </strong>{" "}
-                  {resource.postedBy ||
-                    "Not specified"}
-                </p>
-
-                {/* Availability */}
-                <div style={styles.availabilityRow}>
-
-                  <strong>
-                    Availability:
-                  </strong>
-
-                  <span
-                    style={
-                      resource.availability ===
-                      "available"
-                        ? styles.available
-                        : styles.notSpecified
+              return (
+                <div key={resource.id}>
+                  <ResourceCard
+                    name={resource.title}
+                    category={
+                      resource.category || "Not specified"
                     }
-                  >
-                    {resource.availability ||
-                      "Available"}
-                  </span>
+                    owner={
+                      resource.postedBy || "Unknown"
+                    }
+                    rating="4.8"
+                  />
 
+                  <div
+                    style={{
+                      background: "#ffffff",
+                      border: "1px solid #E2E8F0",
+                      borderRadius: "10px",
+                      padding: "12px",
+                      marginTop: "-8px",
+                      marginBottom: "16px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        margin: "0 0 10px",
+                        color: "#64748B",
+                        lineHeight: "1.5",
+                      }}
+                    >
+                      {resource.description ||
+                        "No description provided"}
+                    </p>
+
+                    <p
+                      style={{
+                        margin: "6px 0",
+                        fontSize: "13px",
+                      }}
+                    >
+                      <strong>Location:</strong>{" "}
+                      {resource.location ||
+                        "Not specified"}
+                    </p>
+
+                    <p
+                      style={{
+                        margin: "6px 0",
+                        fontSize: "13px",
+                      }}
+                    >
+                      <strong>Availability:</strong>{" "}
+                      {resource.availability ||
+                        "Available"}
+                    </p>
+
+                    <p
+                      style={{
+                        margin: "6px 0",
+                        fontSize: "13px",
+                      }}
+                    >
+                      <strong>Created:</strong>{" "}
+                      {resource.created_at
+                        ? new Date(
+                            resource.created_at
+                          ).toLocaleString()
+                        : "Not available"}
+                    </p>
+
+                    {isBorrowed ? (
+                      <button
+                        className="small-button"
+                        disabled
+                        style={{
+                          background: "#16a34a",
+                          cursor: "not-allowed",
+                        }}
+                      >
+                        ✓ Resource Borrowed
+                      </button>
+                    ) : (
+                      <button
+                        className="small-button"
+                        onClick={() =>
+                          handleBorrow(resource)
+                        }
+                      >
+                        Borrow Resource
+                      </button>
+                    )}
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+        )}
+      </main>
 
-                {/* Created */}
-                <p>
-                  <strong>Created:</strong>{" "}
-                  {resource.created_at
-                    ? new Date(
-                        resource.created_at
-                      ).toLocaleString()
-                    : "Not available"}
-                </p>
-
-                {/* Borrow Button */}
-                {isBorrowed ? (
-                  <button
-                    style={styles.borrowedButton}
-                    disabled
-                  >
-                    ✓ Resource Borrowed
-                  </button>
-                ) : (
-                  <button
-                    style={styles.borrowButton}
-                    onClick={() =>
-                      handleBorrow(resource)
-                    }
-                  >
-                    Borrow Resource
-                  </button>
-                )}
-
-              </div>
-            );
-          })}
-
-        </div>
-      )}
-
+      <BottomNavigation active="resources" />
     </div>
   );
 }
-
-const styles = {
-  container: {
-    padding: "30px",
-    maxWidth: "1200px",
-    margin: "0 auto",
-  },
-
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "20px",
-    marginBottom: "25px",
-    flexWrap: "wrap",
-  },
-
-  subtitle: {
-    color: "#666",
-    marginBottom: "0",
-  },
-
-  grid: {
-    display: "grid",
-    gridTemplateColumns:
-      "repeat(auto-fit, minmax(280px, 1fr))",
-    gap: "20px",
-  },
-
-  card: {
-    backgroundColor: "#ffffff",
-    borderRadius: "12px",
-    padding: "20px",
-    boxShadow:
-      "0 4px 12px rgba(0, 0, 0, 0.08)",
-    border: "1px solid #e5e7eb",
-  },
-
-  description: {
-    color: "#555",
-    lineHeight: "1.5",
-  },
-
-  availabilityRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: "10px",
-    marginBottom: "10px",
-  },
-
-  available: {
-    padding: "5px 10px",
-    borderRadius: "6px",
-    backgroundColor: "#dcfce7",
-    color: "#166534",
-    fontSize: "13px",
-    fontWeight: "600",
-  },
-
-  notSpecified: {
-    padding: "5px 10px",
-    borderRadius: "6px",
-    backgroundColor: "#fef3c7",
-    color: "#92400e",
-    fontSize: "13px",
-    fontWeight: "600",
-  },
-
-  postButton: {
-    padding: "12px 18px",
-    border: "none",
-    borderRadius: "8px",
-    backgroundColor: "#2563eb",
-    color: "#ffffff",
-    fontSize: "15px",
-    fontWeight: "600",
-    cursor: "pointer",
-  },
-
-  borrowButton: {
-    width: "100%",
-    marginTop: "18px",
-    padding: "12px 16px",
-    border: "none",
-    borderRadius: "8px",
-    backgroundColor: "#2563eb",
-    color: "#ffffff",
-    fontSize: "16px",
-    fontWeight: "600",
-    cursor: "pointer",
-  },
-
-  borrowedButton: {
-    width: "100%",
-    marginTop: "18px",
-    padding: "12px 16px",
-    border: "none",
-    borderRadius: "8px",
-    backgroundColor: "#16a34a",
-    color: "#ffffff",
-    fontSize: "16px",
-    fontWeight: "600",
-    cursor: "not-allowed",
-  },
-
-  emptyState: {
-    textAlign: "center",
-    padding: "50px 20px",
-    backgroundColor: "#ffffff",
-    borderRadius: "12px",
-    border: "1px solid #e5e7eb",
-  },
-
-  error: {
-    color: "red",
-    fontWeight: "600",
-  },
-};
 
 export default Resources;
