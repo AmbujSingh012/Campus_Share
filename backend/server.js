@@ -1,3 +1,4 @@
+const paymentRoutes = require("./routes/paymentRoutes");
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
@@ -21,7 +22,6 @@ const resourceRoutes = require("./routes/resourceRoutes");
 const taskRoutes = require("./routes/taskRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const helperRoutes = require("./routes/helperRoutes");
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -120,7 +120,7 @@ app.use("/api/resources", resourceRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/helper", helperRoutes);
-
+app.use("/api/payments", paymentRoutes);
 app.use((req, res) => {
   res.status(404).json({
     success: false,
