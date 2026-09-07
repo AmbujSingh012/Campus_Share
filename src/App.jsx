@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 
 import Login from "./pages/Login";
+import Register from "./pages/Register";
 import Home from "./pages/Home";
 import Resources from "./pages/Resources";
 import Tasks from "./pages/Tasks";
@@ -24,11 +25,9 @@ function App() {
       <Route path="/campus-helper" element={<CampusHelper />} />
       <Route path="/post-task" element={<PostTask />} />
 
-      {/* Post Resource */}
       <Route path="/post" element={<PostResource />} />
       <Route path="/post-resource" element={<PostResource />} />
 
-      {/* Task Payment */}
       <Route path="/task-payment" element={<TaskPayment />} />
     </Routes>
   );
