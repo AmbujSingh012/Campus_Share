@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -122,6 +121,22 @@ function Tasks() {
             Find tasks posted by students and earn rewards.
           </p>
         </div>
+
+        {/* Post Task Button */}
+        <button
+          type="button"
+          onClick={() => navigate("/post-task")}
+          style={{
+            padding: "12px 20px",
+            marginBottom: "20px",
+            border: "none",
+            borderRadius: "8px",
+            cursor: "pointer",
+            fontWeight: "600",
+          }}
+        >
+          + Post Task
+        </button>
 
         {tasks.length === 0 ? (
           <p>No tasks available.</p>

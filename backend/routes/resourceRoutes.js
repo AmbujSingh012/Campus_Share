@@ -1,26 +1,56 @@
-
 const express = require("express");
 const db = require("../db");
+const authenticateToken = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
+// All resource APIs require authentication
+router.use(authenticateToken);
+
 // GET ALL RESOURCES
+// Only resources from the logged-in user's college
 router.get("/", async (req, res) => {
   try {
-    const [resources] = await db.execute(`
-      SELECT
+    const userId = req.user.userId;
+
+    const [users] = await db.execute(
+      "SELECT college_id FROM users WHERE id = ?",
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: "Authenticated user not found",
+      });
+    }
+
+    const collegeId = users[0].college_id;
+
+    if (!collegeId) {
+      return res.status(403).json({
+        success: false,
+        message: "User is not associated with a college",
+      });
+    }
+
+    const [resources] = await db.execute(
+      `SELECT
         r.id,
         r.user_id,
         r.title,
         r.description,
         r.category,
         r.availability,
+        r.college_id,
         r.created_at,
         u.name AS postedBy
-      FROM resources r
-      JOIN users u ON r.user_id = u.id
-      ORDER BY r.created_at DESC
-    `);
+       FROM resources r
+       JOIN users u ON r.user_id = u.id
+       WHERE r.college_id = ?
+       ORDER BY r.created_at DESC`,
+      [collegeId]
+    );
 
     res.json({
       success: true,
@@ -38,6 +68,7 @@ router.get("/", async (req, res) => {
 });
 
 // GET RESOURCE BY ID
+// Only allow access to resources from the logged-in user's college
 router.get("/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -49,6 +80,22 @@ router.get("/:id", async (req, res) => {
       });
     }
 
+    const userId = req.user.userId;
+
+    const [users] = await db.execute(
+      "SELECT college_id FROM users WHERE id = ?",
+      [userId]
+    );
+
+    if (users.length === 0 || !users[0].college_id) {
+      return res.status(403).json({
+        success: false,
+        message: "User is not associated with a college",
+      });
+    }
+
+    const collegeId = users[0].college_id;
+
     const [resources] = await db.execute(
       `SELECT
         r.id,
@@ -57,18 +104,20 @@ router.get("/:id", async (req, res) => {
         r.description,
         r.category,
         r.availability,
+        r.college_id,
         r.created_at,
         u.name AS postedBy
        FROM resources r
        JOIN users u ON r.user_id = u.id
-       WHERE r.id = ?`,
-      [id]
+       WHERE r.id = ?
+         AND r.college_id = ?`,
+      [id, collegeId]
     );
 
     if (resources.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Resource not found",
+        message: "Resource not found in your college",
       });
     }
 
@@ -87,60 +136,60 @@ router.get("/:id", async (req, res) => {
 });
 
 // CREATE RESOURCE
+// college_id comes from authenticated user, NOT frontend
 router.post("/", async (req, res) => {
   try {
     const {
       title,
       description,
       category,
-      postedBy,
-      location,
-      userId,
       availability,
+      location,
     } = req.body;
 
-    // Accept userId from the new API.
-    // Keep postedBy temporarily supported for frontend compatibility.
-    const ownerId = userId || postedBy;
-
-    if (!title || !category || !ownerId) {
+    if (!title || !category) {
       return res.status(400).json({
         success: false,
-        message: "Title, category and userId are required",
+        message: "Title and category are required",
       });
     }
 
-    const numericUserId = Number(ownerId);
-
-    if (!Number.isInteger(numericUserId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid userId",
-      });
-    }
+    const userId = req.user.userId;
 
     const [users] = await db.execute(
-      "SELECT id, name FROM users WHERE id = ?",
-      [numericUserId]
+      "SELECT id, name, college_id FROM users WHERE id = ?",
+      [userId]
     );
 
     if (users.length === 0) {
-      return res.status(404).json({
+      return res.status(401).json({
         success: false,
-        message: "User not found",
+        message: "Authenticated user not found",
       });
     }
 
+    const user = users[0];
+
+    if (!user.college_id) {
+      return res.status(403).json({
+        success: false,
+        message: "User is not associated with a college",
+      });
+    }
+
+    const collegeId = user.college_id;
+
     const [result] = await db.execute(
       `INSERT INTO resources
-       (user_id, title, description, category, availability)
-       VALUES (?, ?, ?, ?, ?)`,
+       (user_id, title, description, category, availability, college_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [
-        numericUserId,
+        user.id,
         title.trim(),
         description || "",
         category.trim(),
         availability || location || null,
+        collegeId,
       ]
     );
 
@@ -152,6 +201,7 @@ router.post("/", async (req, res) => {
         r.description,
         r.category,
         r.availability,
+        r.college_id,
         r.created_at,
         u.name AS postedBy
        FROM resources r
@@ -171,6 +221,117 @@ router.post("/", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error while creating resource",
+    });
+  }
+});
+
+// UPDATE RESOURCE
+// User can update only their own resource
+router.put("/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid resource ID",
+      });
+    }
+
+    const {
+      title,
+      description,
+      category,
+      availability,
+    } = req.body;
+
+    if (!title || !category) {
+      return res.status(400).json({
+        success: false,
+        message: "Title and category are required",
+      });
+    }
+
+    const userId = req.user.userId;
+
+    const [result] = await db.execute(
+      `UPDATE resources
+       SET title = ?,
+           description = ?,
+           category = ?,
+           availability = ?
+       WHERE id = ?
+         AND user_id = ?`,
+      [
+        title.trim(),
+        description || "",
+        category.trim(),
+        availability || null,
+        id,
+        userId,
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Resource not found or you are not the owner",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Resource updated successfully",
+    });
+  } catch (error) {
+    console.error("Update resource error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Server error while updating resource",
+    });
+  }
+});
+
+// DELETE RESOURCE
+// User can delete only their own resource
+router.delete("/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid resource ID",
+      });
+    }
+
+    const userId = req.user.userId;
+
+    const [result] = await db.execute(
+      `DELETE FROM resources
+       WHERE id = ?
+         AND user_id = ?`,
+      [id, userId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Resource not found or you are not the owner",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Resource deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete resource error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Server error while deleting resource",
     });
   }
 });

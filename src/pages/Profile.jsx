@@ -7,10 +7,27 @@ import {
   UserRound,
 } from "lucide-react";
 
+import { useNavigate } from "react-router-dom";
+
 import Header from "../components/Header";
 import BottomNavigation from "../components/BottomNavigation";
 
 function Profile() {
+  const navigate = useNavigate();
+
+  // Logout function
+  const handleLogout = () => {
+    // Remove login information
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+
+    // Optional: remove demo payment information
+    localStorage.removeItem("campussharePayments");
+
+    // Go to login page
+    navigate("/login");
+  };
+
   return (
     <div className="page">
       <Header title="Profile" showSettings />
@@ -48,38 +65,58 @@ function Profile() {
         </div>
 
         <div className="profile-menu">
-          <button className="profile-menu-item">
+          <button
+            type="button"
+            className="profile-menu-item"
+          >
             <UserRound size={19} />
             <span>My Resources</span>
             <ChevronRight size={17} />
           </button>
 
-          <button className="profile-menu-item">
+          <button
+            type="button"
+            className="profile-menu-item"
+          >
             <Edit3 size={19} />
             <span>My Tasks</span>
             <ChevronRight size={17} />
           </button>
 
-          <button className="profile-menu-item">
+          <button
+            type="button"
+            className="profile-menu-item"
+          >
             <History size={19} />
             <span>Transaction History</span>
             <ChevronRight size={17} />
           </button>
 
-          <button className="profile-menu-item">
+          <button
+            type="button"
+            className="profile-menu-item"
+          >
             <Edit3 size={19} />
             <span>Edit Profile</span>
             <ChevronRight size={17} />
           </button>
 
-          <button className="profile-menu-item">
+          <button
+            type="button"
+            className="profile-menu-item"
+          >
             <Settings size={19} />
             <span>Settings</span>
             <ChevronRight size={17} />
           </button>
         </div>
 
-        <button className="logout-button">
+        {/* Logout Button */}
+        <button
+          type="button"
+          className="logout-button"
+          onClick={handleLogout}
+        >
           <LogOut size={18} />
           Logout
         </button>

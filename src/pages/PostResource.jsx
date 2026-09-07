@@ -5,8 +5,9 @@ import { useNavigate } from "react-router-dom";
 
 import Header from "../components/Header";
 import BottomNavigation from "../components/BottomNavigation";
+import { createResource } from "../api/api";
 
-const API_BASE_URL = "http://localhost:3000";
+
 
 function PostResource() {
   const navigate = useNavigate();
@@ -25,84 +26,82 @@ function PostResource() {
   const [error, setError] = useState("");
 
   const handleSubmit = async (event) => {
-    event.preventDefault();
+  event.preventDefault();
 
-    setMessage("");
-    setError("");
+  setMessage("");
+  setError("");
 
-    // Basic validation
-    if (!title.trim()) {
-      setError("Please enter a resource name.");
-      return;
+  // Basic validation
+  if (!title.trim()) {
+    setError("Please enter a resource name.");
+    return;
+  }
+
+  if (!category) {
+    setError("Please select a category.");
+    return;
+  }
+
+  if (!description.trim()) {
+    setError("Please enter a description.");
+    return;
+  }
+
+  if (!location.trim()) {
+    setError("Please enter a pickup location.");
+    return;
+  }
+
+  // Check login token
+  const token = localStorage.getItem("token");
+
+  if (!token) {
+    setError("Please login before posting a resource.");
+    navigate("/login");
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const data = await createResource({
+      title: title.trim(),
+      description: description.trim(),
+      category,
+      location: location.trim(),
+      availability: availability ? "Available" : "Unavailable",
+    });
+
+    if (!data.success) {
+      throw new Error(data.message || "Failed to create resource.");
     }
 
-    if (!category) {
-      setError("Please select a category.");
-      return;
-    }
+    setMessage("Resource posted successfully!");
 
-    if (!description.trim()) {
-      setError("Please enter a description.");
-      return;
-    }
+    // Clear form
+    setTitle("");
+    setCategory("");
+    setDescription("");
+    setLocation("");
+    setCondition("Excellent");
+    setAvailability(true);
+    setBorrowingFee("");
 
-    if (!location.trim()) {
-      setError("Please enter a pickup location.");
-      return;
-    }
+    // Go to Resources page after successful posting
+    setTimeout(() => {
+      navigate("/resources");
+    }, 1000);
+  } catch (err) {
+    console.error("Create resource error:", err);
 
-    try {
-      setLoading(true);
-
-      const response = await fetch(`${API_BASE_URL}/api/resources`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim(),
-          category,
-          location: location.trim(),
-
-          // Current backend uses postedBy.
-          // Using logged-in user's ID when available.
-          postedBy:
-            JSON.parse(localStorage.getItem("user") || "null")?.id || 2,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to create resource.");
-      }
-
-      setMessage("Resource posted successfully!");
-
-      // Clear form
-      setTitle("");
-      setCategory("");
-      setDescription("");
-      setLocation("");
-      setCondition("Excellent");
-      setAvailability(true);
-      setBorrowingFee("");
-
-      // Go to Resources page after successful posting
-      setTimeout(() => {
-        navigate("/resources");
-      }, 1000);
-    } catch (err) {
-      console.error("Create resource error:", err);
-      setError(
-        err.message ||
-          "Unable to connect to backend. Make sure the backend is running on port 3000."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    setError(
+      err.message ||
+        "Unable to connect to backend. Make sure the backend is running on port 3000."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="page">

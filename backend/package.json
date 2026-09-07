@@ -18,10 +18,12 @@
     "@x402/express": "^2.25.0",
     "@x402/fetch": "^2.25.0",
     "algosdk": "^3.7.0",
+    "bcryptjs": "^3.0.3",
     "bip39": "^3.1.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
     "mysql2": "^3.24.3"
   },
   "devDependencies": {
