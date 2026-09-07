@@ -10,6 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@perawallet/connect": "^1.6.1",
+    "@x402/avm": "^2.25.0",
+    "@x402/core": "^2.25.0",
+    "@x402/fetch": "^2.25.0",
+    "algosdk": "^3.7.0",
     "lucide-react": "^1.40.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

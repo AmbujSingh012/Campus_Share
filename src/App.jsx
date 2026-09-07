@@ -7,7 +7,7 @@ import Tasks from "./pages/Tasks";
 import Profile from "./pages/Profile";
 import PostResource from "./pages/PostResource";
 import TaskPayment from "./pages/TaskPayment";
-
+import CampusHelper from "./pages/CampusHelper";
 function App() {
   return (
     <Routes>
@@ -18,6 +18,7 @@ function App() {
       <Route path="/resources" element={<Resources />} />
       <Route path="/tasks" element={<Tasks />} />
       <Route path="/profile" element={<Profile />} />
+      <Route path="/campus-helper" element={<CampusHelper />} />
 
       {/* Post Resource */}
       <Route path="/post" element={<PostResource />} />

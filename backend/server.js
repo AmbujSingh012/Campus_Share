@@ -20,6 +20,7 @@ const authRoutes = require("./routes/authRoutes");
 const resourceRoutes = require("./routes/resourceRoutes");
 const taskRoutes = require("./routes/taskRoutes");
 const profileRoutes = require("./routes/profileRoutes");
+const helperRoutes = require("./routes/helperRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -57,9 +58,31 @@ const x402Routes = {
     description: "CampusShare premium API",
     mimeType: "application/json",
   },
+  "POST /api/helper": {
+  accepts: {
+    scheme: "exact",
+    network: ALGORAND_TESTNET_CAIP2,
+    payTo: PAY_TO,
+    price: {
+      asset: USDC_TESTNET_ASA_ID.toString(),
+      amount: "100000",
+      extra: {
+        name: "USDC",
+        decimals: 6,
+      },
+    },
+  },
+  description: "CampusShare Campus Helper",
+  mimeType: "application/json",
+},
 };
 
-app.use(cors());
+
+app.use(
+  cors({
+    exposedHeaders: ["PAYMENT-REQUIRED", "PAYMENT-RESPONSE"],
+  })
+);
 app.use(express.json());
 
 app.use(paymentMiddleware(x402Routes, x402Server));
@@ -96,6 +119,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/resources", resourceRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/helper", helperRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
