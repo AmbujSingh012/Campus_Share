@@ -20,6 +20,7 @@ function authenticateToken(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
+    console.log("AUTH USER:", decoded.userId);
 
     req.user = decoded;
 
