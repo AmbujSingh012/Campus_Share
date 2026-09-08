@@ -10,7 +10,6 @@ import PostResource from "./pages/PostResource";
 import TaskPayment from "./pages/TaskPayment";
 import CampusHelper from "./pages/CampusHelper";
 import PostTask from "./pages/PostTask";
-import Register from "./pages/Register";
 function App() {
   return (
     <Routes>
