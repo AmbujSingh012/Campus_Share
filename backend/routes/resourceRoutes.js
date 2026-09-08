@@ -335,5 +335,61 @@ router.delete("/:id", async (req, res) => {
     });
   }
 });
+// GET AVAILABLE RESOURCES
+router.get("/available", async (req, res) => {
+  try {
+    const userId = req.user.userId;
 
+    const [users] = await db.execute(
+      "SELECT college_id FROM users WHERE id = ?",
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: "Authenticated user not found",
+      });
+    }
+
+    const collegeId = users[0].college_id;
+
+    if (!collegeId) {
+      return res.status(403).json({
+        success: false,
+        message: "User is not associated with a college",
+      });
+    }
+
+    const [resources] = await db.execute(
+      `SELECT
+        r.id,
+        r.user_id,
+        r.title,
+        r.description,
+        r.category,
+        r.availability,
+        r.college_id,
+        r.created_at,
+        u.name AS postedBy
+       FROM resources r
+       JOIN users u ON r.user_id = u.id
+       WHERE r.college_id = ?
+         AND r.availability = 'available'
+       ORDER BY r.created_at DESC`,
+      [collegeId]
+    );
+
+    res.json({
+      success: true,
+      resources,
+    });
+  } catch (error) {
+    console.error("Available resources error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching available resources",
+    });
+  }
+});
 module.exports = router;

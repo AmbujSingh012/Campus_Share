@@ -124,5 +124,34 @@ res.json({
     });
   }
 });
+// GET AVAILABLE HELPERS
+router.get("/available", async (req, res) => {
+  try {
+    const [helpers] = await db.execute(
+      `SELECT
+        u.id,
+        u.name,
+        u.email,
+        u.location,
+        u.availability,
+        u.college_id
+       FROM users u
+       WHERE u.availability = 'available'
+       ORDER BY u.created_at DESC`
+    );
 
+    res.json({
+      success: true,
+      count: helpers.length,
+      helpers,
+    });
+  } catch (error) {
+    console.error("Available helpers error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching available helpers",
+    });
+  }
+});
 module.exports = router;
