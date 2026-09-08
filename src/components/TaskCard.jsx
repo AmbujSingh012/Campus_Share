@@ -7,8 +7,14 @@ function TaskCard({
   deadline,
   postedBy,
   location,
+  status,
+  paymentStatus,
   onApply,
+  onConnectionDetails,
 }) {
+  const isAccepted =
+    status === "accepted" || paymentStatus === "paid";
+
   return (
     <div className="task-card">
       <div className="task-card-header">
@@ -37,21 +43,42 @@ function TaskCard({
         Posted by: {postedBy}
       </p>
 
-      <button
-  className="small-button"
-  onClick={() =>
-    onApply({
-      id,
-      title,
-      budget,
-      deadline,
-      postedBy,
-      location,
-    })
-  }
->
-  Apply
-</button>
+ {isAccepted ? (
+  <>
+    <button
+      className="small-button"
+      type="button"
+      disabled
+    >
+      Task Accepted
+    </button>
+
+    <button
+      className="small-button"
+      type="button"
+      onClick={() => onConnectionDetails(id)}
+    >
+      View Connection Details
+    </button>
+  </>
+) : (
+        <button
+          className="small-button"
+          type="button"
+          onClick={() =>
+            onApply({
+              id,
+              title,
+              budget,
+              deadline,
+              postedBy,
+              location,
+            })
+          }
+        >
+          Apply
+        </button>
+      )}
     </div>
   );
 }

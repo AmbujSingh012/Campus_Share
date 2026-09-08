@@ -10,6 +10,10 @@ import PostResource from "./pages/PostResource";
 import TaskPayment from "./pages/TaskPayment";
 import CampusHelper from "./pages/CampusHelper";
 import PostTask from "./pages/PostTask";
+import MyResources from "./pages/MyResources";
+import EditResource from "./pages/EditResource";
+import TransactionHistory from "./pages/TransactionHistory";
+import ConnectionDetails from "./pages/ConnectionDetails";
 function App() {
   return (
     <Routes>
@@ -19,8 +23,21 @@ function App() {
 
       <Route path="/home" element={<Home />} />
       <Route path="/resources" element={<Resources />} />
+      <Route path="/my-resources" element={<MyResources />} />
+      <Route
+  path="/resources/:id/edit"
+  element={<EditResource />}
+/>
       <Route path="/tasks" element={<Tasks />} />
+      <Route
+  path="/connection-details"
+  element={<ConnectionDetails />}
+/>
       <Route path="/profile" element={<Profile />} />
+      <Route
+  path="/transaction-history"
+  element={<TransactionHistory />}
+/>
       <Route path="/campus-helper" element={<CampusHelper />} />
       <Route path="/post-task" element={<PostTask />} />
 

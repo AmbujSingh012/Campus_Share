@@ -223,5 +223,95 @@ router.post("/login", async (req, res) => {
     });
   }
 });
+// UPDATE PROFILE
+// PUT /api/auth/profile
+router.put("/profile", async (req, res) => {
+  try {
+    const { id, name, email } = req.body;
 
+    if (!id || !name || !email) {
+      return res.status(400).json({
+        success: false,
+        message: "ID, name and email are required",
+      });
+    }
+
+    const cleanName = name.trim();
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanName) {
+      return res.status(400).json({
+        success: false,
+        message: "Name is required",
+      });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(cleanEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid email address",
+      });
+    }
+
+    const [existingUsers] = await db.execute(
+      "SELECT id FROM users WHERE email = ? AND id != ?",
+      [cleanEmail, id]
+    );
+
+    if (existingUsers.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "Email already registered by another user",
+      });
+    }
+
+    await db.execute(
+      "UPDATE users SET name = ?, email = ? WHERE id = ?",
+      [cleanName, cleanEmail, id]
+    );
+
+    const [users] = await db.execute(
+      `SELECT
+        u.id,
+        u.name,
+        u.email,
+        u.college_id,
+        c.name AS college
+       FROM users u
+       LEFT JOIN colleges c ON u.college_id = c.id
+       WHERE u.id = ?`,
+      [id]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const user = users[0];
+
+    return res.json({
+      success: true,
+      message: "Profile updated successfully",
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        college_id: user.college_id,
+        college: user.college,
+      },
+    });
+  } catch (error) {
+    console.error("Profile update error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error while updating profile",
+    });
+  }
+});
 module.exports = router;

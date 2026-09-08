@@ -79,17 +79,53 @@ export async function createTask(taskData) {
 
 // CREATE RESOURCE
 export async function createResource(resourceData) {
-  const response = await fetch(`${API_BASE_URL}/api/resources`, {
-    method: "POST",
-    headers: getAuthHeaders(),
-    body: JSON.stringify(resourceData),
-  });
+  const token = localStorage.getItem("token");
 
-  if (!response.ok) {
-    throw new Error("Failed to create resource");
+  const formData = new FormData();
+
+  formData.append("title", resourceData.title);
+  formData.append("description", resourceData.description || "");
+  formData.append("category", resourceData.category);
+  formData.append("location", resourceData.location || "");
+  formData.append(
+    "availability",
+    resourceData.availability || "Available"
+  );
+  formData.append(
+    "condition",
+    resourceData.condition || "Excellent"
+  );
+  formData.append(
+    "borrowingFee",
+    resourceData.borrowingFee || "0"
+  );
+
+  if (resourceData.image) {
+    formData.append("image", resourceData.image);
   }
 
-  return response.json();
+  const response = await fetch(
+    `${API_BASE_URL}/api/resources`,
+    {
+      method: "POST",
+      headers: {
+        ...(token
+          ? { Authorization: `Bearer ${token}` }
+          : {}),
+      },
+      body: formData,
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || "Failed to create resource"
+    );
+  }
+
+  return data;
 }
 
 // ACCEPT TASK
@@ -107,6 +143,24 @@ export async function acceptTask(taskId) {
 
   if (!response.ok) {
     throw new Error(data.message || "Failed to accept task");
+  }
+
+  return data;
+}
+export async function getTaskConnection(taskId) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/tasks/${taskId}/connection`,
+    {
+      headers: getAuthHeaders(),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || "Failed to fetch connection details"
+    );
   }
 
   return data;

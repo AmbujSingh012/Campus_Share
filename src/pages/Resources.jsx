@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import BottomNavigation from "../components/BottomNavigation";
 import ResourceCard from "../components/ResourceCard";
-import { getResources } from "../api/api";
+import { getResources } from "../api";
 
 function Resources() {
   const navigate = useNavigate();
@@ -24,7 +24,7 @@ function Resources() {
         const data = await getResources();
 
         if (data.success) {
-          setResources(data.resources);
+          setResources(data.resources || []);
         } else {
           setError("Failed to load resources");
         }
@@ -129,6 +129,7 @@ function Resources() {
           <div className="resource-card">
             <div className="resource-info">
               <h3>No resources available</h3>
+
               <p className="category">
                 Be the first student to post a resource.
               </p>
@@ -149,13 +150,41 @@ function Resources() {
 
               return (
                 <div key={resource.id}>
+
+                  {/* RESOURCE IMAGE */}
+                  {resource.image_url && (
+                    <img
+                      src={`http://localhost:3000${resource.image_url}`}
+                      alt={resource.title}
+                      style={{
+                        width: "100%",
+                        height: "220px",
+                        objectFit: "cover",
+                        borderRadius: "12px",
+                        marginBottom: "10px",
+                        display: "block",
+                      }}
+                      onError={(e) => {
+                        console.error(
+                          "Image failed to load:",
+                          `http://localhost:3000${resource.image_url}`
+                        );
+
+                        e.currentTarget.style.display =
+                          "none";
+                      }}
+                    />
+                  )}
+
                   <ResourceCard
                     name={resource.title}
                     category={
-                      resource.category || "Not specified"
+                      resource.category ||
+                      "Not specified"
                     }
                     owner={
-                      resource.postedBy || "Unknown"
+                      resource.postedBy ||
+                      "Unknown"
                     }
                     rating="4.8"
                   />

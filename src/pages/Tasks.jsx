@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
 import Header from "../components/Header";
 import BottomNavigation from "../components/BottomNavigation";
 import TaskCard from "../components/TaskCard";
-import { getTasks } from "../api/api";
+import { getTasks } from "../api";
 
 function Tasks() {
   const navigate = useNavigate();
@@ -12,7 +11,6 @@ function Tasks() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [paymentInfo, setPaymentInfo] = useState({});
 
   useEffect(() => {
     async function loadTasks() {
@@ -36,11 +34,6 @@ function Tasks() {
     }
 
     loadTasks();
-
-    const savedPaymentInfo =
-      JSON.parse(localStorage.getItem("campussharePayments")) || {};
-
-    setPaymentInfo(savedPaymentInfo);
   }, []);
 
   const handleApply = (task) => {
@@ -55,21 +48,55 @@ function Tasks() {
   };
 
   const getPaymentStatus = (task) => {
-    return (
-      paymentInfo[task.id]?.paymentStatus ||
-      "Payment Required"
-    );
+    // Current user has personally paid
+    if (task.my_payment_status === "paid") {
+      return "Paid";
+    }
+
+    // Someone has already paid for this task
+    if (task.task_payment_status === "paid") {
+      return "Paid by Helper";
+    }
+
+    // Current user's payment is pending
+    if (task.my_payment_status === "pending") {
+      return "Payment Pending";
+    }
+
+    // Someone else has started payment
+    if (task.task_payment_status === "pending") {
+      return "Payment Pending";
+    }
+
+    return "Payment Required";
   };
 
   const getTransactionStatus = (task) => {
-    return (
-      paymentInfo[task.id]?.transactionStatus ||
-      "Not Started"
-    );
+    if (
+      task.my_payment_status === "paid" ||
+      task.task_payment_status === "paid"
+    ) {
+      return "Completed";
+    }
+
+    if (
+      task.my_payment_status === "pending" ||
+      task.task_payment_status === "pending"
+    ) {
+      return "Pending";
+    }
+
+    return "Not Started";
   };
 
   const getTransactionId = (task) => {
-    return paymentInfo[task.id]?.transactionId || "";
+    // Show current user's transaction first
+    if (task.my_transaction_id) {
+      return task.my_transaction_id;
+    }
+
+    // Otherwise show the transaction for the task
+    return task.task_transaction_id || "";
   };
 
   if (loading) {
@@ -117,12 +144,12 @@ function Tasks() {
       <main className="page-content">
         <div className="welcome-section">
           <h2>Campus Tasks</h2>
+
           <p>
             Find tasks posted by students and earn rewards.
           </p>
         </div>
 
-        {/* Post Task Button */}
         <button
           type="button"
           onClick={() => navigate("/post-task")}
@@ -156,19 +183,22 @@ function Tasks() {
 
               return (
                 <div key={task.id}>
-                  <TaskCard
-                    id={task.id}
-                    title={task.title}
-                    budget={task.reward || "Not specified"}
-                    deadline={
-                      task.deadline || "Not specified"
-                    }
-                    postedBy={postedBy}
-                    location={
-                      task.location || "Not specified"
-                    }
-                    onApply={handleApply}
-                  />
+<TaskCard
+  id={task.id}
+  title={task.title}
+  budget={task.reward || "Not specified"}
+  deadline={task.deadline || "Not specified"}
+  postedBy={postedBy}
+  location={task.location || "Not specified"}
+  status={task.status}
+  paymentStatus={task.task_payment_status}
+  onApply={handleApply}
+  onConnectionDetails={(taskId) =>
+    navigate("/connection-details", {
+      state: { taskId: taskId },
+    })
+  }
+/>
 
                   <div
                     style={{
@@ -199,6 +229,7 @@ function Tasks() {
                       }}
                     >
                       <span>Category</span>
+
                       <strong>
                         {task.category || "Not specified"}
                       </strong>
@@ -212,6 +243,7 @@ function Tasks() {
                       }}
                     >
                       <span>Task Status</span>
+
                       <strong>
                         {task.status || "Not specified"}
                       </strong>
@@ -225,6 +257,7 @@ function Tasks() {
                       }}
                     >
                       <span>Payment Status</span>
+
                       <strong>{paymentStatus}</strong>
                     </div>
 
@@ -236,6 +269,7 @@ function Tasks() {
                       }}
                     >
                       <span>Transaction Status</span>
+
                       <strong>{transactionStatus}</strong>
                     </div>
 

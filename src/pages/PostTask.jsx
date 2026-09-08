@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import BottomNavigation from "../components/BottomNavigation";
-import { createTask } from "../api/api";
+import { createTask } from "../api";
 
 function PostTask() {
   const navigate = useNavigate();
@@ -13,6 +13,7 @@ function PostTask() {
   const [reward, setReward] = useState("");
   const [deadline, setDeadline] = useState("");
   const [location, setLocation] = useState("");
+  const [meetingTime, setMeetingTime] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -71,7 +72,8 @@ function PostTask() {
         category,
         reward: Number(reward),
         deadline,
-        location: location.trim(),
+       location: location.trim(),
+       meeting_time: meetingTime || null,
       });
 
       if (!data.success) {
@@ -220,6 +222,16 @@ function PostTask() {
 
             <div style={{ marginBottom: "15px" }}>
               <label>Location</label>
+              <div className="form-group">
+         <label htmlFor="meetingTime">Meeting Time</label>
+
+      <input
+    id="meetingTime"
+    type="datetime-local"
+    value={meetingTime}
+    onChange={(e) => setMeetingTime(e.target.value)}
+  />
+</div>
               <input
                 type="text"
                 value={location}
