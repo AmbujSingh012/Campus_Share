@@ -1,11 +1,11 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import Header from "../components/Header";
 import BottomNavigation from "../components/BottomNavigation";
 import ResourceCard from "../components/ResourceCard";
-import { getResources } from "../api";
+
+import { getResources, borrowResource } from "../api";
 
 function Resources() {
   const navigate = useNavigate();
@@ -13,7 +13,16 @@ function Resources() {
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [borrowedResources, setBorrowedResources] = useState({});
+  const [borrowingId, setBorrowingId] = useState(null);
+
+  // Current logged-in user
+  const currentUser = JSON.parse(
+    localStorage.getItem("user") || "null"
+  );
+
+  // =====================================================
+  // LOAD RESOURCES
+  // =====================================================
 
   useEffect(() => {
     async function loadResources() {
@@ -37,32 +46,55 @@ function Resources() {
     }
 
     loadResources();
-
-    const savedBorrowed =
-      JSON.parse(
-        localStorage.getItem("campusshareBorrowedResources")
-      ) || {};
-
-    setBorrowedResources(savedBorrowed);
   }, []);
 
-  const handleBorrow = (resource) => {
-    const updatedBorrowed = {
-      ...borrowedResources,
-      [resource.id]: true,
-    };
+  // =====================================================
+  // BORROW RESOURCE
+  // =====================================================
 
-    setBorrowedResources(updatedBorrowed);
+  const handleBorrow = async (resource) => {
+    try {
+      setBorrowingId(resource.id);
+      setError("");
 
-    localStorage.setItem(
-      "campusshareBorrowedResources",
-      JSON.stringify(updatedBorrowed)
-    );
+      const data = await borrowResource(resource.id);
+
+      if (data.success) {
+        // Update resource on screen immediately
+        setResources((previousResources) =>
+          previousResources.map((item) =>
+            item.id === resource.id
+              ? data.resource
+              : item
+          )
+        );
+      } else {
+        setError(
+          data.message || "Failed to borrow resource"
+        );
+      }
+    } catch (err) {
+      console.error("Borrow resource error:", err);
+
+      setError(
+        err.message || "Failed to borrow resource"
+      );
+    } finally {
+      setBorrowingId(null);
+    }
   };
+
+  // =====================================================
+  // POST RESOURCE
+  // =====================================================
 
   const handlePostResource = () => {
     navigate("/post-resource");
   };
+
+  // =====================================================
+  // LOADING
+  // =====================================================
 
   if (loading) {
     return (
@@ -79,7 +111,11 @@ function Resources() {
     );
   }
 
-  if (error) {
+  // =====================================================
+  // ERROR
+  // =====================================================
+
+  if (error && resources.length === 0) {
     return (
       <div className="page">
         <Header title="CampusShare" />
@@ -87,7 +123,12 @@ function Resources() {
         <main className="page-content">
           <h2>Campus Resources</h2>
 
-          <p style={{ color: "red", fontWeight: "600" }}>
+          <p
+            style={{
+              color: "red",
+              fontWeight: "600",
+            }}
+          >
             {error}
           </p>
 
@@ -102,18 +143,26 @@ function Resources() {
     );
   }
 
+  // =====================================================
+  // PAGE
+  // =====================================================
+
   return (
     <div className="page">
       <Header title="CampusShare" />
 
       <main className="page-content">
+
+        {/* Page Heading */}
         <div className="welcome-section">
           <h2>Campus Resources</h2>
+
           <p>
             Find useful resources shared by students.
           </p>
         </div>
 
+        {/* Post Resource Button */}
         <button
           className="quick-action post-action"
           onClick={handlePostResource}
@@ -125,9 +174,27 @@ function Resources() {
           + Post Resource
         </button>
 
+        {/* Borrow Error */}
+        {error && (
+          <p
+            style={{
+              color: "red",
+              fontWeight: "600",
+              marginBottom: "15px",
+            }}
+          >
+            {error}
+          </p>
+        )}
+
+        {/* =====================================================
+            NO RESOURCES
+        ===================================================== */}
+
         {resources.length === 0 ? (
           <div className="resource-card">
             <div className="resource-info">
+
               <h3>No resources available</h3>
 
               <p className="category">
@@ -140,54 +207,75 @@ function Resources() {
               >
                 + Post Resource
               </button>
+
             </div>
           </div>
         ) : (
+
+          /* =====================================================
+             RESOURCE LIST
+          ===================================================== */
+
           <div className="resource-list">
+
             {resources.map((resource) => {
+
+              // =====================================================
+              // RESOURCE STATUS
+              // =====================================================
+
               const isBorrowed =
-                borrowedResources[resource.id];
+                String(resource.availability || "")
+                  .toLowerCase() === "borrowed" ||
+                Boolean(resource.borrowed_by);
+
+              const isOwner =
+                Number(currentUser?.id) ===
+                Number(resource.user_id);
+
+              const isBorrowing =
+                borrowingId === resource.id;
 
               return (
                 <div key={resource.id}>
 
-                  {/* RESOURCE IMAGE */}
-                  {resource.image_url && (
-                    <img
-                      src={`http://localhost:3000${resource.image_url}`}
-                      alt={resource.title}
-                      style={{
-                        width: "100%",
-                        height: "220px",
-                        objectFit: "cover",
-                        borderRadius: "12px",
-                        marginBottom: "10px",
-                        display: "block",
-                      }}
-                      onError={(e) => {
-                        console.error(
-                          "Image failed to load:",
-                          `http://localhost:3000${resource.image_url}`
-                        );
+                  {/* =====================================================
+                      RESOURCE IMAGE
+                  ===================================================== */}
 
-                        e.currentTarget.style.display =
-                          "none";
-                      }}
-                    />
-                  )}
+
+                  {/* =====================================================
+                      RESOURCE CARD
+                  ===================================================== */}
 
                   <ResourceCard
-                    name={resource.title}
-                    category={
-                      resource.category ||
-                      "Not specified"
-                    }
-                    owner={
-                      resource.postedBy ||
-                      "Unknown"
-                    }
-                    rating="4.8"
-                  />
+  name={resource.title}
+  category={
+    resource.category ||
+    "Not specified"
+  }
+  owner={
+    resource.postedBy ||
+    "Unknown"
+  }
+  rating={
+    resource.averageRating > 0
+      ? resource.averageRating
+      : "No ratings"
+  }
+  location={
+    resource.location ||
+    "Not specified"
+  }
+  imageUrl={resource.image_url}
+  onBorrow={() =>
+    handleBorrow(resource)
+  }
+/>
+
+                  {/* =====================================================
+                      RESOURCE DETAILS
+                  ===================================================== */}
 
                   <div
                     style={{
@@ -199,6 +287,8 @@ function Resources() {
                       marginBottom: "16px",
                     }}
                   >
+
+                    {/* Description */}
                     <p
                       style={{
                         margin: "0 0 10px",
@@ -210,6 +300,43 @@ function Resources() {
                         "No description provided"}
                     </p>
 
+                    {/* Owner */}
+                    <p
+                      style={{
+                        margin: "6px 0",
+                        fontSize: "13px",
+                      }}
+                    >
+                      <strong>Owner:</strong>{" "}
+                      {resource.postedBy ||
+                        "Unknown"}
+                    </p>
+
+                    {/* Owner Email */}
+                    <p
+                      style={{
+                        margin: "6px 0",
+                        fontSize: "13px",
+                      }}
+                    >
+                      <strong>Owner Email:</strong>{" "}
+                      {resource.ownerEmail ||
+                        "Not available"}
+                    </p>
+
+                    {/* Owner Mobile */}
+                    <p
+                      style={{
+                        margin: "6px 0",
+                        fontSize: "13px",
+                      }}
+                    >
+                      <strong>Owner Mobile:</strong>{" "}
+                      {resource.ownerMobile ||
+                        "Not available"}
+                    </p>
+
+                    {/* Location */}
                     <p
                       style={{
                         margin: "6px 0",
@@ -221,6 +348,7 @@ function Resources() {
                         "Not specified"}
                     </p>
 
+                    {/* Availability */}
                     <p
                       style={{
                         margin: "6px 0",
@@ -232,6 +360,7 @@ function Resources() {
                         "Available"}
                     </p>
 
+                    {/* Created */}
                     <p
                       style={{
                         margin: "6px 0",
@@ -246,7 +375,88 @@ function Resources() {
                         : "Not available"}
                     </p>
 
-                    {isBorrowed ? (
+                    {/* =====================================================
+                        BORROWER DETAILS
+                    ===================================================== */}
+
+                    {isBorrowed &&
+                      resource.borrowedBy && (
+                        <>
+                          <p
+                            style={{
+                              margin: "6px 0",
+                              fontSize: "13px",
+                            }}
+                          >
+                            <strong>
+                              Borrowed By:
+                            </strong>{" "}
+                            {resource.borrowedBy}
+                          </p>
+
+                          <p
+                            style={{
+                              margin: "6px 0",
+                              fontSize: "13px",
+                            }}
+                          >
+                            <strong>
+                              Borrower Email:
+                            </strong>{" "}
+                            {resource.borrowerEmail ||
+                              "Not available"}
+                          </p>
+
+                          <p
+                            style={{
+                              margin: "6px 0",
+                              fontSize: "13px",
+                            }}
+                          >
+                            <strong>
+                              Borrower Mobile:
+                            </strong>{" "}
+                            {resource.borrowerMobile ||
+                              "Not available"}
+                          </p>
+
+                          <p
+                            style={{
+                              margin: "6px 0",
+                              fontSize: "13px",
+                            }}
+                          >
+                            <strong>
+                              Borrowed At:
+                            </strong>{" "}
+                            {resource.borrowed_at
+                              ? new Date(
+                                  resource.borrowed_at
+                                ).toLocaleString()
+                              : "Not available"}
+                          </p>
+                        </>
+                      )}
+
+                    {/* =====================================================
+                        BORROW BUTTON
+                    ===================================================== */}
+
+                    {isOwner ? (
+
+                      <button
+                        className="small-button"
+                        disabled
+                        style={{
+                          background: "#94A3B8",
+                          cursor: "not-allowed",
+                        }}
+                      >
+                        Your Resource
+                      </button>
+
+                    ) : isBorrowed ? (
+
                       <button
                         className="small-button"
                         disabled
@@ -257,22 +467,31 @@ function Resources() {
                       >
                         ✓ Resource Borrowed
                       </button>
+
                     ) : (
+
                       <button
                         className="small-button"
                         onClick={() =>
                           handleBorrow(resource)
                         }
+                        disabled={isBorrowing}
                       >
-                        Borrow Resource
+                        {isBorrowing
+                          ? "Borrowing..."
+                          : "Borrow Resource"}
                       </button>
+
                     )}
+
                   </div>
                 </div>
               );
             })}
+
           </div>
         )}
+
       </main>
 
       <BottomNavigation active="resources" />

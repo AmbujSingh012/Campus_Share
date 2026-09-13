@@ -1,5 +1,5 @@
-
 const express = require("express");
+
 const db = require("../db");
 
 const router = express.Router();
@@ -17,7 +17,22 @@ router.get("/:id", async (req, res) => {
     }
 
     const [users] = await db.execute(
-      `SELECT id, name, email, location, availability, created_at
+      `SELECT
+        id,
+        name,
+        email,
+        mobile,
+        location,
+        availability,
+        created_at,
+        COALESCE(
+          (
+            SELECT ROUND(AVG(r.rating), 1)
+            FROM ratings r
+            WHERE r.rated_user_id = users.id
+          ),
+          0
+        ) AS averageRating
        FROM users
        WHERE id = ?`,
       [userId]
@@ -55,8 +70,10 @@ router.get("/:id", async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
+        mobile: user.mobile,
         location: user.location,
         availability: user.availability,
+        averageRating: Number(user.averageRating || 0),
         postedTasks: Number(taskCount[0].count),
         postedResources: Number(resourceCount[0].count),
         acceptedTasks: Number(acceptedTaskCount[0].count),

@@ -6,3 +6,7 @@ backend/.env.save
 
 dist/
 backend/server.js.backup
+
+# Temporary/debug files
+backend/helper-payment-debug.js
+backend/routes/taskRoutes.js.save

@@ -1,6 +1,9 @@
 const API_BASE_URL = "http://localhost:3000";
 
-// Get JWT token saved after login
+// =====================================================
+// GET JWT TOKEN / AUTH HEADERS
+// =====================================================
+
 function getAuthHeaders() {
   const token = localStorage.getItem("token");
 
@@ -10,11 +13,17 @@ function getAuthHeaders() {
   };
 }
 
+// =====================================================
 // GET TASKS
+// =====================================================
+
 export async function getTasks() {
-  const response = await fetch(`${API_BASE_URL}/api/tasks`, {
-    headers: getAuthHeaders(),
-  });
+  const response = await fetch(
+    `${API_BASE_URL}/api/tasks`,
+    {
+      headers: getAuthHeaders(),
+    }
+  );
 
   if (!response.ok) {
     throw new Error("Failed to fetch tasks");
@@ -23,11 +32,17 @@ export async function getTasks() {
   return response.json();
 }
 
+// =====================================================
 // GET RESOURCES
+// =====================================================
+
 export async function getResources() {
-  const response = await fetch(`${API_BASE_URL}/api/resources`, {
-    headers: getAuthHeaders(),
-  });
+  const response = await fetch(
+    `${API_BASE_URL}/api/resources`,
+    {
+      headers: getAuthHeaders(),
+    }
+  );
 
   if (!response.ok) {
     throw new Error("Failed to fetch resources");
@@ -36,11 +51,17 @@ export async function getResources() {
   return response.json();
 }
 
+// =====================================================
 // GET TASK BY ID
+// =====================================================
+
 export async function getTaskById(id) {
-  const response = await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
-    headers: getAuthHeaders(),
-  });
+  const response = await fetch(
+    `${API_BASE_URL}/api/tasks/${id}`,
+    {
+      headers: getAuthHeaders(),
+    }
+  );
 
   if (!response.ok) {
     throw new Error("Failed to fetch task");
@@ -49,11 +70,17 @@ export async function getTaskById(id) {
   return response.json();
 }
 
+// =====================================================
 // GET RESOURCE BY ID
+// =====================================================
+
 export async function getResourceById(id) {
-  const response = await fetch(`${API_BASE_URL}/api/resources/${id}`, {
-    headers: getAuthHeaders(),
-  });
+  const response = await fetch(
+    `${API_BASE_URL}/api/resources/${id}`,
+    {
+      headers: getAuthHeaders(),
+    }
+  );
 
   if (!response.ok) {
     throw new Error("Failed to fetch resource");
@@ -62,57 +89,98 @@ export async function getResourceById(id) {
   return response.json();
 }
 
+// =====================================================
 // CREATE TASK
+// =====================================================
+
 export async function createTask(taskData) {
-  const response = await fetch(`${API_BASE_URL}/api/tasks`, {
-    method: "POST",
-    headers: getAuthHeaders(),
-    body: JSON.stringify(taskData),
-  });
+  const response = await fetch(
+    `${API_BASE_URL}/api/tasks`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(taskData),
+    }
+  );
+
+  const data = await response.json();
 
   if (!response.ok) {
-    throw new Error("Failed to create task");
+    throw new Error(
+      data.message || "Failed to create task"
+    );
   }
 
-  return response.json();
+  return data;
 }
 
+// =====================================================
 // CREATE RESOURCE
+// WITH IMAGE UPLOAD
+// =====================================================
+
 export async function createResource(resourceData) {
   const token = localStorage.getItem("token");
 
   const formData = new FormData();
 
-  formData.append("title", resourceData.title);
-  formData.append("description", resourceData.description || "");
-  formData.append("category", resourceData.category);
-  formData.append("location", resourceData.location || "");
+  formData.append(
+    "title",
+    resourceData.title
+  );
+
+  formData.append(
+    "description",
+    resourceData.description || ""
+  );
+
+  formData.append(
+    "category",
+    resourceData.category
+  );
+
+  formData.append(
+    "location",
+    resourceData.location || ""
+  );
+
   formData.append(
     "availability",
     resourceData.availability || "Available"
   );
+
   formData.append(
     "condition",
     resourceData.condition || "Excellent"
   );
+
   formData.append(
     "borrowingFee",
     resourceData.borrowingFee || "0"
   );
 
   if (resourceData.image) {
-    formData.append("image", resourceData.image);
+    formData.append(
+      "image",
+      resourceData.image
+    );
   }
 
   const response = await fetch(
     `${API_BASE_URL}/api/resources`,
     {
       method: "POST",
+
+      // IMPORTANT:
+      // Do NOT set Content-Type manually for FormData.
       headers: {
         ...(token
-          ? { Authorization: `Bearer ${token}` }
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
           : {}),
       },
+
       body: formData,
     }
   );
@@ -121,20 +189,27 @@ export async function createResource(resourceData) {
 
   if (!response.ok) {
     throw new Error(
-      data.message || "Failed to create resource"
+      data.message ||
+        "Failed to create resource"
     );
   }
 
   return data;
 }
 
-// ACCEPT TASK
-export async function acceptTask(taskId) {
+// =====================================================
+// BORROW RESOURCE
+// Permanent database-based borrowing
+// =====================================================
+
+export async function borrowResource(resourceId) {
   const response = await fetch(
-    `${API_BASE_URL}/api/tasks/${taskId}/accept`,
+    `${API_BASE_URL}/api/resources/${resourceId}/borrow`,
     {
       method: "POST",
+
       headers: getAuthHeaders(),
+
       body: JSON.stringify({}),
     }
   );
@@ -142,11 +217,47 @@ export async function acceptTask(taskId) {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.message || "Failed to accept task");
+    throw new Error(
+      data.message ||
+        "Failed to borrow resource"
+    );
   }
 
   return data;
 }
+
+// =====================================================
+// ACCEPT TASK
+// =====================================================
+
+export async function acceptTask(taskId) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/tasks/${taskId}/accept`,
+    {
+      method: "POST",
+
+      headers: getAuthHeaders(),
+
+      body: JSON.stringify({}),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message ||
+        "Failed to accept task"
+    );
+  }
+
+  return data;
+}
+
+// =====================================================
+// GET TASK CONNECTION
+// =====================================================
+
 export async function getTaskConnection(taskId) {
   const response = await fetch(
     `${API_BASE_URL}/api/tasks/${taskId}/connection`,
@@ -159,7 +270,8 @@ export async function getTaskConnection(taskId) {
 
   if (!response.ok) {
     throw new Error(
-      data.message || "Failed to fetch connection details"
+      data.message ||
+        "Failed to fetch connection details"
     );
   }
 

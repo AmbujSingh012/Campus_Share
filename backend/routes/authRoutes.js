@@ -1,3 +1,4 @@
+
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -12,12 +13,11 @@ if (!JWT_SECRET) {
 }
 
 /*
-========================================
+=========================================
 REGISTER
 POST /api/auth/register
-========================================
+=========================================
 */
-
 router.post("/register", async (req, res) => {
   try {
     const {
@@ -46,7 +46,7 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    // Basic email validation
+    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(cleanEmail)) {
@@ -64,7 +64,7 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    // Check that selected college actually exists
+    // Check that college exists
     const [colleges] = await db.execute(
       "SELECT id, name, email_domain FROM colleges WHERE id = ?",
       [collegeId]
@@ -96,15 +96,17 @@ router.post("/register", async (req, res) => {
     const passwordHash = await bcrypt.hash(password, 10);
 
     // Create user
+    // wallet_address starts as NULL and can be connected later
     const [result] = await db.execute(
       `INSERT INTO users
-       (name, email, password, college_id)
-       VALUES (?, ?, ?, ?)`,
+       (name, email, password, college_id, wallet_address)
+       VALUES (?, ?, ?, ?, ?)`,
       [
         cleanName,
         cleanEmail,
         passwordHash,
         collegeId,
+        null,
       ]
     );
 
@@ -115,11 +117,11 @@ router.post("/register", async (req, res) => {
         id: result.insertId,
         name: cleanName,
         email: cleanEmail,
+        wallet_address: null,
         college_id: college.id,
         college: college.name,
       },
     });
-
   } catch (error) {
     console.error("Registration error:", error);
 
@@ -130,14 +132,12 @@ router.post("/register", async (req, res) => {
   }
 });
 
-
 /*
-========================================
+=========================================
 LOGIN
 POST /api/auth/login
-========================================
+=========================================
 */
-
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -151,13 +151,14 @@ router.post("/login", async (req, res) => {
 
     const cleanEmail = email.trim().toLowerCase();
 
-    // Get user + college information
+    // Get user + college + wallet information
     const [users] = await db.execute(
       `SELECT
         u.id,
         u.name,
         u.email,
         u.password,
+        u.wallet_address,
         u.college_id,
         c.name AS college
        FROM users u
@@ -176,7 +177,7 @@ router.post("/login", async (req, res) => {
 
     const user = users[0];
 
-    // Compare password with bcrypt hash
+    // Compare password
     const passwordMatch = await bcrypt.compare(
       password,
       user.password
@@ -209,11 +210,11 @@ router.post("/login", async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
+        wallet_address: user.wallet_address || null,
         college_id: user.college_id,
         college: user.college,
       },
     });
-
   } catch (error) {
     console.error("Login error:", error);
 
@@ -223,12 +224,26 @@ router.post("/login", async (req, res) => {
     });
   }
 });
-// UPDATE PROFILE
-// PUT /api/auth/profile
+
+/*
+=========================================
+UPDATE PROFILE
+PUT /api/auth/profile
+=========================================
+*/
 router.put("/profile", async (req, res) => {
   try {
-    const { id, name, email } = req.body;
+    const {
+      id,
+      name,
+      email,
+      mobile,
+      wallet_address,
+    } = req.body;
 
+    // ID, name and email are required.
+    // Wallet address is optional because user may not
+    // have connected Pera Wallet yet.
     if (!id || !name || !email) {
       return res.status(400).json({
         success: false,
@@ -246,6 +261,7 @@ router.put("/profile", async (req, res) => {
       });
     }
 
+    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(cleanEmail)) {
@@ -255,6 +271,24 @@ router.put("/profile", async (req, res) => {
       });
     }
 
+    // Validate wallet address if supplied.
+    // Algorand addresses are normally 58 characters.
+    if (
+      wallet_address !== undefined &&
+      wallet_address !== null &&
+      wallet_address !== "" &&
+      (
+        typeof wallet_address !== "string" ||
+        wallet_address.length !== 58
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid wallet address",
+      });
+    }
+
+    // Check duplicate email
     const [existingUsers] = await db.execute(
       "SELECT id FROM users WHERE email = ? AND id != ?",
       [cleanEmail, id]
@@ -267,20 +301,35 @@ router.put("/profile", async (req, res) => {
       });
     }
 
+    // Update profile + wallet
     await db.execute(
-      "UPDATE users SET name = ?, email = ? WHERE id = ?",
-      [cleanName, cleanEmail, id]
+      `UPDATE users
+       SET name = ?,
+           email = ?,
+           mobile = ?,
+           wallet_address = ?
+       WHERE id = ?`,
+      [
+        cleanName,
+        cleanEmail,
+        mobile ? mobile.trim() : null,
+        wallet_address || null,
+        id,
+      ]
     );
 
+    // Get updated user
     const [users] = await db.execute(
       `SELECT
         u.id,
         u.name,
         u.email,
+        u.wallet_address,
         u.college_id,
         c.name AS college
        FROM users u
-       LEFT JOIN colleges c ON u.college_id = c.id
+       LEFT JOIN colleges c
+         ON u.college_id = c.id
        WHERE u.id = ?`,
       [id]
     );
@@ -301,6 +350,7 @@ router.put("/profile", async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
+        wallet_address: user.wallet_address || null,
         college_id: user.college_id,
         college: user.college,
       },
@@ -314,4 +364,5 @@ router.put("/profile", async (req, res) => {
     });
   }
 });
+
 module.exports = router;

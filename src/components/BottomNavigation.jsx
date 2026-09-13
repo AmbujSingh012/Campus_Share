@@ -1,13 +1,20 @@
-import { Home, BookOpen, Plus, ListTodo, User } from "lucide-react";
+
+import {
+  Home,
+  BookOpen,
+  Plus,
+  ListTodo,
+  User,
+  HandHelping,
+} from "lucide-react";
+
 import { useNavigate } from "react-router-dom";
 
 function BottomNavigation({ active }) {
-
   const navigate = useNavigate();
 
   return (
     <nav className="bottom-navigation">
-
       <button
         className={`nav-item ${active === "home" ? "active" : ""}`}
         onClick={() => navigate("/home")}
@@ -41,13 +48,20 @@ function BottomNavigation({ active }) {
       </button>
 
       <button
+        className={`nav-item ${active === "helper" ? "active" : ""}`}
+        onClick={() => navigate("/campus-helper")}
+      >
+        <HandHelping size={19} />
+        <span>Helper</span>
+      </button>
+
+      <button
         className={`nav-item ${active === "profile" ? "active" : ""}`}
         onClick={() => navigate("/profile")}
       >
         <User size={19} />
         <span>Profile</span>
       </button>
-
     </nav>
   );
 }

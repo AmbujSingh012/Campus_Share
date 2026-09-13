@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
+
 import { useNavigate } from "react-router-dom";
+
 import Header from "../components/Header";
+
 import BottomNavigation from "../components/BottomNavigation";
+
 import TaskCard from "../components/TaskCard";
-import { getTasks } from "../api";
+
+import { getTasks, acceptTask } from "../api";
 
 function Tasks() {
   const navigate = useNavigate();
@@ -12,6 +17,16 @@ function Tasks() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Get currently logged-in user
+  const savedUser = JSON.parse(
+    localStorage.getItem("user") || "null"
+  );
+
+  const currentUserId = savedUser?.id;
+
+  console.log("Current logged-in user:", savedUser);
+  console.log("Current user ID:", currentUserId);
+
   useEffect(() => {
     async function loadTasks() {
       try {
@@ -19,6 +34,8 @@ function Tasks() {
         setError("");
 
         const data = await getTasks();
+
+        console.log("Tasks API response:", data);
 
         if (data.success) {
           setTasks(data.tasks);
@@ -36,39 +53,57 @@ function Tasks() {
     loadTasks();
   }, []);
 
-  const handleApply = (task) => {
-    navigate("/task-payment", {
-      state: {
-        task: {
-          ...task,
-          budget: task.reward,
-        },
-      },
-    });
+  const handleApply = async (task) => {
+    try {
+      setError("");
+
+      const data = await acceptTask(task.id);
+
+      if (data.success) {
+        setTasks((previousTasks) =>
+          previousTasks.map((item) =>
+            item.id === task.id
+              ? {
+                  ...item,
+                  status: "accepted",
+                  my_acceptance_status: "accepted",
+                }
+              : item
+          )
+        );
+
+        alert("Task applied successfully!");
+      } else {
+        setError(
+          data.message || "Failed to apply for task"
+        );
+      }
+    } catch (err) {
+      console.error("Apply task error:", err);
+
+      setError(
+        err.message || "Failed to apply for task"
+      );
+    }
   };
 
   const getPaymentStatus = (task) => {
-    // Current user has personally paid
     if (task.my_payment_status === "paid") {
-      return "Paid";
+      return "Reward Paid";
     }
 
-    // Someone has already paid for this task
     if (task.task_payment_status === "paid") {
-      return "Paid by Helper";
+      return "Reward Paid";
     }
 
-    // Current user's payment is pending
-    if (task.my_payment_status === "pending") {
+    if (
+      task.my_payment_status === "pending" ||
+      task.task_payment_status === "pending"
+    ) {
       return "Payment Pending";
     }
 
-    // Someone else has started payment
-    if (task.task_payment_status === "pending") {
-      return "Payment Pending";
-    }
-
-    return "Payment Required";
+    return "Payment Pending";
   };
 
   const getTransactionStatus = (task) => {
@@ -90,12 +125,10 @@ function Tasks() {
   };
 
   const getTransactionId = (task) => {
-    // Show current user's transaction first
     if (task.my_transaction_id) {
       return task.my_transaction_id;
     }
 
-    // Otherwise show the transaction for the task
     return task.task_transaction_id || "";
   };
 
@@ -106,6 +139,7 @@ function Tasks() {
 
         <main className="page-content">
           <h2>Campus Tasks</h2>
+
           <p>Loading tasks...</p>
         </main>
 
@@ -122,13 +156,18 @@ function Tasks() {
         <main className="page-content">
           <h2>Campus Tasks</h2>
 
-          <p style={{ color: "red", fontWeight: "600" }}>
+          <p
+            style={{
+              color: "red",
+              fontWeight: "600",
+            }}
+          >
             {error}
           </p>
 
           <p>
-            Make sure the CampusShare backend is running on
-            port 3000.
+            Make sure the CampusShare backend is
+            running on port 3000.
           </p>
         </main>
 
@@ -146,7 +185,8 @@ function Tasks() {
           <h2>Campus Tasks</h2>
 
           <p>
-            Find tasks posted by students and earn rewards.
+            Find tasks posted by students and earn
+            rewards.
           </p>
         </div>
 
@@ -170,10 +210,14 @@ function Tasks() {
         ) : (
           <div className="task-list">
             {tasks.map((task) => {
-              const paymentStatus = getPaymentStatus(task);
+              const paymentStatus =
+                getPaymentStatus(task);
+
               const transactionStatus =
                 getTransactionStatus(task);
-              const transactionId = getTransactionId(task);
+
+              const transactionId =
+                getTransactionId(task);
 
               const postedBy =
                 task.postedBy ||
@@ -181,24 +225,56 @@ function Tasks() {
                 task.user_id ||
                 "Unknown";
 
+              // Check if current logged-in user
+              // is the person who posted the task.
+              const isOwner =
+                Number(currentUserId) ===
+                Number(task.user_id);
+
+              console.log(
+                "Task:",
+                task.id,
+                "Task owner:",
+                task.user_id,
+                "Current user:",
+                currentUserId,
+                "Is owner:",
+                isOwner
+              );
+
               return (
                 <div key={task.id}>
-<TaskCard
-  id={task.id}
-  title={task.title}
-  budget={task.reward || "Not specified"}
-  deadline={task.deadline || "Not specified"}
-  postedBy={postedBy}
-  location={task.location || "Not specified"}
-  status={task.status}
-  paymentStatus={task.task_payment_status}
-  onApply={handleApply}
-  onConnectionDetails={(taskId) =>
-    navigate("/connection-details", {
-      state: { taskId: taskId },
-    })
-  }
-/>
+                  <TaskCard
+                    id={task.id}
+                    title={task.title}
+                    budget={
+                      task.reward || "Not specified"
+                    }
+                    deadline={
+                      task.deadline || "Not specified"
+                    }
+                    postedBy={postedBy}
+                    location={
+                      task.location ||
+                      "Not specified"
+                    }
+                    status={task.status}
+                    paymentStatus={
+                      task.task_payment_status
+                    }
+                    isOwner={isOwner}
+                    onApply={handleApply}
+                    onConnectionDetails={(taskId) =>
+                      navigate(
+                        "/connection-details",
+                        {
+                          state: {
+                            taskId: taskId,
+                          },
+                        }
+                      )
+                    }
+                  />
 
                   <div
                     style={{
@@ -224,53 +300,65 @@ function Tasks() {
                     <div
                       style={{
                         display: "flex",
-                        justifyContent: "space-between",
+                        justifyContent:
+                          "space-between",
                         padding: "5px 0",
                       }}
                     >
                       <span>Category</span>
 
                       <strong>
-                        {task.category || "Not specified"}
+                        {task.category ||
+                          "Not specified"}
                       </strong>
                     </div>
 
                     <div
                       style={{
                         display: "flex",
-                        justifyContent: "space-between",
+                        justifyContent:
+                          "space-between",
                         padding: "5px 0",
                       }}
                     >
                       <span>Task Status</span>
 
                       <strong>
-                        {task.status || "Not specified"}
+                        {task.status ||
+                          "Not specified"}
                       </strong>
                     </div>
 
                     <div
                       style={{
                         display: "flex",
-                        justifyContent: "space-between",
+                        justifyContent:
+                          "space-between",
                         padding: "5px 0",
                       }}
                     >
                       <span>Payment Status</span>
 
-                      <strong>{paymentStatus}</strong>
+                      <strong>
+                        {paymentStatus}
+                      </strong>
                     </div>
 
                     <div
                       style={{
                         display: "flex",
-                        justifyContent: "space-between",
+                        justifyContent:
+                          "space-between",
                         padding: "5px 0",
                       }}
                     >
-                      <span>Transaction Status</span>
+                      <span>
+                        Transaction Status
+                      </span>
 
-                      <strong>{transactionStatus}</strong>
+                      <strong>
+                        {transactionStatus}
+                      </strong>
                     </div>
 
                     {transactionId && (
@@ -283,8 +371,12 @@ function Tasks() {
                           wordBreak: "break-all",
                         }}
                       >
-                        <strong>Transaction ID:</strong>
+                        <strong>
+                          Transaction ID:
+                        </strong>
+
                         <br />
+
                         {transactionId}
                       </div>
                     )}

@@ -160,3 +160,136 @@
     width: 100%;
   }
 }
+/* =========================================
+   CAMPUS HELPER RECOMMENDATIONS
+   ========================================= */
+
+.helper-recommendations {
+  margin-top: 30px;
+}
+
+.recommendation-section {
+  margin-top: 28px;
+}
+
+.recommendation-section h3 {
+  color: #374151;
+  margin-bottom: 14px;
+}
+
+.recommendation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.recommendation-card {
+  padding: 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.recommendation-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.recommendation-card-header h4 {
+  margin: 0;
+  color: #111827;
+  font-size: 18px;
+}
+
+.recommendation-type {
+  flex-shrink: 0;
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.recommendation-description {
+  margin: 8px 0 14px;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.recommendation-detail {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 8px 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.available-status {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.recommendation-reward {
+  margin: 12px 0;
+  color: #2563eb;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.recommendation-action {
+  width: 100%;
+  margin-top: 12px;
+  padding: 11px 14px;
+  border: none;
+  border-radius: 9px;
+  background: #2563eb;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.recommendation-action:hover {
+  background: #1d4ed8;
+}
+
+.recommendation-action:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.no-recommendations {
+  padding: 18px;
+  margin-top: 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #6b7280;
+  text-align: center;
+}
+
+@media (max-width: 700px) {
+  .recommendation-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .recommendation-card-header {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 600px) {
+  .recommendation-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .recommendation-card {
+    padding: 15px;
+  }
+}

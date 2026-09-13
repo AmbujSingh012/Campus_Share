@@ -97,30 +97,6 @@ const x402Routes = {
     mimeType: "application/json",
   },
 
-  "POST /api/tasks/:id/accept": {
-    accepts: {
-      scheme: "exact",
-
-      network: ALGORAND_TESTNET_CAIP2,
-
-      payTo: PAY_TO,
-
-      price: {
-        asset: USDC_TESTNET_ASA_ID.toString(),
-        amount: X402_AMOUNT,
-
-        extra: {
-          name: "USDC",
-          decimals: 6,
-        },
-      },
-    },
-
-    description: "CampusShare paid task acceptance",
-
-    mimeType: "application/json",
-  },
-
   "POST /api/helper": {
     accepts: {
       scheme: "exact",

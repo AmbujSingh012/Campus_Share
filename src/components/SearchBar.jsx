@@ -1,12 +1,14 @@
 import { Search } from "lucide-react";
 
-function SearchBar({ placeholder = "Search..." }) {
+function SearchBar({ placeholder = "Search...", value, onChange }) {
   return (
     <div className="search-bar">
 
       <Search size={18} />
 
       <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         type="text"
         placeholder={placeholder}
       />

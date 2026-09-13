@@ -1,4 +1,8 @@
 import {
+  connectPeraWallet,
+  reconnectPeraWallet,
+} from "../utils/peraX402";
+import {
   ChevronRight,
   Edit3,
   History,
@@ -29,6 +33,12 @@ function Profile() {
   );
 
   const [email, setEmail] = useState(savedUser?.email || "");
+  const [mobile, setMobile] = useState(savedUser?.mobile || "");
+  const [walletAddress, setWalletAddress] = useState(
+  savedUser?.wallet_address || ""
+);
+
+const [walletConnecting, setWalletConnecting] = useState(false);
 
   const [notifications, setNotifications] = useState(true);
 
@@ -41,6 +51,38 @@ function Profile() {
       navigate("/login");
     }
   }, [savedUser, navigate]);
+
+  // Get latest profile data from backend
+  const getProfile = async () => {
+    try {
+      if (!savedUser?.id) return;
+
+      const response = await fetch(
+        `http://localhost:3000/api/profile/${savedUser.id}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        console.error("Profile fetch error:", data.message);
+        return;
+      }
+
+      setUser((prev) => ({
+        ...prev,
+        ...data.profile,
+      }));
+    } catch (error) {
+      console.error("Profile connection error:", error);
+    }
+  };
+
+  // Load latest profile data
+  useEffect(() => {
+    if (savedUser?.id) {
+      getProfile();
+    }
+  }, [savedUser?.id]);
 
   // Get transaction history from backend
   const getTransactions = async () => {
@@ -104,7 +146,27 @@ function Profile() {
 
     navigate("/login");
   };
+const handleConnectWallet = async () => {
+  try {
+    setWalletConnecting(true);
 
+    const address = await connectPeraWallet();
+
+    if (!address) {
+      alert("Pera Wallet connection failed.");
+      return;
+    }
+
+    setWalletAddress(address);
+
+    alert("Pera Wallet connected successfully!");
+  } catch (error) {
+    console.error("Pera Wallet error:", error);
+    alert(error.message || "Failed to connect Pera Wallet.");
+  } finally {
+    setWalletConnecting(false);
+  }
+};
   // Save profile
   const handleSaveProfile = async () => {
     if (!name.trim() || !email.trim()) {
@@ -123,11 +185,13 @@ function Profile() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            id: user.id,
-            name: name.trim(),
-            email: email.trim(),
-          }),
+        body: JSON.stringify({
+  id: user.id,
+  name: name.trim(),
+  email: email.trim(),
+  mobile: mobile.trim() || null,
+  wallet_address: walletAddress || null,
+}),
         }
       );
 
@@ -146,6 +210,8 @@ function Profile() {
       setUser(data.user);
       setName(data.user.name);
       setEmail(data.user.email);
+      setMobile(data.user.mobile || "");
+      setWalletAddress(data.user.wallet_address || "");
 
       alert("Profile updated successfully!");
 
@@ -345,6 +411,75 @@ function Profile() {
                 border: "1px solid #d1d5db",
               }}
             />
+            <label>Mobile Number</label>
+            <input
+              type="tel"
+              value={mobile}
+              onChange={(e) => setMobile(e.target.value)}
+              placeholder="Enter your mobile number"
+              style={{
+                width: "100%",
+                padding: "12px",
+                marginTop: "8px",
+                marginBottom: "20px",
+                borderRadius: "8px",
+                border: "1px solid #d1d5db",
+              }}
+            />
+
+            <div
+  style={{
+    marginBottom: "20px",
+    padding: "15px",
+    borderRadius: "10px",
+    background: "#f8fafc",
+    border: "1px solid #e5e7eb",
+  }}
+>
+  <label
+    style={{
+      display: "block",
+      fontWeight: "600",
+      marginBottom: "10px",
+    }}
+  >
+    Pera Wallet
+  </label>
+
+  {walletAddress ? (
+    <>
+      <p
+        style={{
+          fontSize: "12px",
+          wordBreak: "break-all",
+          marginBottom: "10px",
+        }}
+      >
+        {walletAddress}
+      </p>
+
+      <button
+        type="button"
+        onClick={handleConnectWallet}
+        disabled={walletConnecting}
+      >
+        {walletConnecting
+          ? "Connecting..."
+          : "Change Pera Wallet"}
+      </button>
+    </>
+  ) : (
+    <button
+      type="button"
+      onClick={handleConnectWallet}
+      disabled={walletConnecting}
+    >
+      {walletConnecting
+        ? "Connecting..."
+        : "Connect Pera Wallet"}
+    </button>
+  )}
+</div>
 
             <button
               type="button"
@@ -459,23 +594,23 @@ function Profile() {
           <p>{studentEmail}</p>
 
           <div className="profile-rating">
-            ⭐ 4.8
+            ⭐ {user.averageRating > 0 ? user.averageRating : "No ratings"}
           </div>
         </section>
 
         <div className="profile-stats">
           <div>
-            <strong>5</strong>
+            <strong>{user.postedResources || 0}</strong>
             <span>Resources</span>
           </div>
 
           <div>
-            <strong>8</strong>
+            <strong>{user.postedTasks || 0}</strong>
             <span>Tasks</span>
           </div>
 
           <div>
-            <strong>4.8</strong>
+            <strong>{user.averageRating > 0 ? user.averageRating : "—"}</strong>
             <span>Rating</span>
           </div>
         </div>
