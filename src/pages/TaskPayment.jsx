@@ -1,3 +1,7 @@
+import API_BASE_URL from "../api";
+import { ArrowLeft, CheckCircle2, CircleAlert, Clock3, Coins, Info, Loader2, Network, ReceiptText, ShieldCheck, Sparkles, WalletCards } from "lucide-react";
+import BottomNavigation from "../components/BottomNavigation";
+import "./TaskPayment.css";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -37,341 +41,236 @@ function TaskPayment() {
 
   if (!task) {
     return (
-      <div style={{ padding: "40px" }}>
-        <h2>Task not found</h2>
+    <div className="task-payment-page app-page-frame">
+      <div className="task-payment-shell">
 
-        <button onClick={() => navigate("/tasks")}>
-          Back to Tasks
-        </button>
-      </div>
-    );
-  }
-
-  const connectWallet = async () => {
-    try {
-      setError("");
-
-      const address =
-        await connectPeraWallet();
-
-      setWalletAddress(address);
-    } catch (err) {
-      console.error(err);
-
-      setError(
-        err?.message ||
-          "Failed to connect Pera Wallet"
-      );
-    }
-  };
-
-  const handlePayment = async () => {
-    try {
-      setError("");
-
-      if (!walletAddress) {
-        await connectWallet();
-        return;
-      }
-
-      setLoading(true);
-
-      setPaymentStatus("Processing");
-      setTransactionStatus("Processing");
-
-      /*
-       * IMPORTANT:
-       * x402 automatically performs:
-       *
-       * 1. Request protected API
-       * 2. Backend returns HTTP 402
-       * 3. x402 creates payment transaction
-       * 4. Pera Wallet asks user to sign
-       * 5. x402 retries request with payment
-       * 6. Backend verifies + settles payment
-       */
-
-      const paidFetch =
-        await createX402PaidFetch();
-
-      const token =
-        localStorage.getItem("token");
-
-      const response =
-        await paidFetch(
-          `http://localhost:3000/api/tasks/${task.id}/accept`,
-          {
-            method: "POST",
-            headers: {
-              ...(token
-                ? {
-                    Authorization:
-                      `Bearer ${token}`,
-                  }
-                : {}),
-              "Content-Type":
-                "application/json",
-            },
-            body: JSON.stringify({}),
-          }
-        );
-
-      const data =
-        await response.json();
-
-      console.log(
-        "x402 payment response:",
-        data
-      );
-
-      if (!response.ok) {
-        throw new Error(
-          data?.message ||
-            `Payment failed (${response.status})`
-        );
-      }
-
-      setPaymentStatus(
-        "Payment Successful"
-      );
-
-      setTransactionStatus(
-        "Completed"
-      );
-
-      /*
-       * x402 settlement response normally
-       * contains transaction information.
-       */
-      const paymentResponse =
-        response.headers.get(
-          "PAYMENT-RESPONSE"
-        );
-
-      if (paymentResponse) {
-        try {
-          const decoded =
-            JSON.parse(
-              atob(paymentResponse)
-            );
-
-          console.log(
-            "PAYMENT-RESPONSE:",
-            decoded
-          );
-
-          setTransactionId(
-            decoded?.transaction ||
-              decoded?.txHash ||
-              decoded?.transactionId ||
-              ""
-          );
-        } catch (decodeError) {
-          console.log(
-            "Could not decode PAYMENT-RESPONSE",
-            decodeError
-          );
-        }
-      }
-
-      /*
-       * Return to Tasks after successful
-       * payment so the user can see the
-       * accepted task.
-       */
-      setTimeout(() => {
-        navigate("/tasks");
-      }, 2000);
-    } catch (err) {
-      console.error(
-        "x402 payment error:",
-        err
-      );
-
-      setPaymentStatus(
-        "Payment Failed"
-      );
-
-      setTransactionStatus(
-        "Failed"
-      );
-
-      setError(
-        err?.message ||
-          "Payment failed"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div
-      style={{
-        maxWidth: "700px",
-        margin: "40px auto",
-        padding: "20px",
-      }}
-    >
-      <div
-        style={{
-          background: "#fff",
-          padding: "30px",
-          borderRadius: "16px",
-          boxShadow:
-            "0 4px 20px rgba(0,0,0,0.08)",
-        }}
-      >
-        <h1>Task Payment</h1>
-
-        <h2>{task.title}</h2>
-
-        <p>
-          <strong>Description:</strong>{" "}
-          {task.description}
-        </p>
-
-        <p>
-          <strong>Reward:</strong>{" "}
-          {task.reward}
-        </p>
-
-        <hr />
-
-        <h3>Pera Wallet</h3>
-
-        {walletAddress ? (
-          <p
-            style={{
-              wordBreak: "break-all",
-            }}
-          >
-            Connected:
-            <br />
-            <strong>
-              {walletAddress}
-            </strong>
-          </p>
-        ) : (
+        <div className="task-payment-topbar">
           <button
-            onClick={connectWallet}
-            style={{
-              padding: "12px 20px",
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer",
-              background: "#2563eb",
-              color: "white",
-            }}
+            type="button"
+            className="task-payment-back"
+            onClick={() => navigate("/tasks")}
+            aria-label="Back to tasks"
           >
-            Connect Pera Wallet
+            <ArrowLeft size={20} />
           </button>
-        )}
 
-        <hr />
+          <div className="task-payment-topbar-copy">
+            <span>CampusShare Payments</span>
+            <strong>Secure task payment</strong>
+          </div>
+        </div>
 
-        <h3>Payment Status</h3>
+        <div className="task-payment-card">
 
-        <p>
-          <strong>
-            {paymentStatus}
-          </strong>
-        </p>
+          <div className="task-payment-hero">
+            <div className="task-payment-eyebrow">
+              <Sparkles size={14} />
+              x402 • Algorand Testnet
+            </div>
 
-        <h3>Transaction Status</h3>
+            <h1>Complete your task payment</h1>
 
-        <p>
-          {transactionStatus}
-        </p>
-
-        {transactionId && (
-          <div>
-            <h3>Transaction ID</h3>
-
-            <p
-              style={{
-                wordBreak: "break-all",
-                background: "#f5f5f5",
-                padding: "10px",
-                borderRadius: "8px",
-              }}
-            >
-              {transactionId}
+            <p>
+              Pay the task reward securely through Pera Wallet.
+              The x402 flow handles payment verification automatically.
             </p>
           </div>
-        )}
 
-        {error && (
-          <div
-            style={{
-              background: "#fee2e2",
-              color: "#991b1b",
-              padding: "12px",
-              borderRadius: "8px",
-              marginTop: "15px",
-            }}
-          >
-            {error}
+          <div className="task-payment-body">
+
+            <div className="task-payment-task">
+              <div className="task-payment-task-label">
+                Task you are accepting
+              </div>
+
+              <h2>{task.title}</h2>
+
+              <p className="task-payment-description">
+                {task.description || "No description provided for this task."}
+              </p>
+
+              <div className="task-payment-reward">
+                <span>
+                  <Coins size={15} style={{ verticalAlign: "-3px", marginRight: 5 }} />
+                  Task reward
+                </span>
+                <strong>{task.reward} USDC</strong>
+              </div>
+            </div>
+
+            <div className="task-payment-section">
+              <div className="task-payment-section-title">
+                <div className="task-payment-section-title-icon">
+                  <WalletCards size={20} />
+                </div>
+                <strong>Pera Wallet</strong>
+              </div>
+
+              {walletAddress ? (
+                <div className="task-payment-wallet">
+                  <div className="task-payment-wallet-icon">
+                    <ShieldCheck size={22} />
+                  </div>
+
+                  <div className="task-payment-wallet-content">
+                    <span>Wallet connected</span>
+                    <div className="task-payment-wallet-address">
+                      {walletAddress}
+                    </div>
+                  </div>
+
+                  <CheckCircle2 size={21} color="#16a34a" />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="task-payment-connect"
+                  onClick={connectWallet}
+                >
+                  <WalletCards size={18} style={{ verticalAlign: "-4px", marginRight: 8 }} />
+                  Connect Pera Wallet
+                </button>
+              )}
+            </div>
+
+            <div className="task-payment-section">
+              <div className="task-payment-section-title">
+                <div className="task-payment-section-title-icon">
+                  <ReceiptText size={20} />
+                </div>
+                <strong>Payment status</strong>
+              </div>
+
+              <div className="task-payment-status-grid">
+
+                <div className="task-payment-status">
+                  <div className="task-payment-status-label">
+                    Payment
+                  </div>
+
+                  <div
+                    className={`task-payment-status-value ${
+                      paymentStatus === "Payment Successful"
+                        ? "success"
+                        : paymentStatus === "Payment Failed"
+                        ? "failed"
+                        : paymentStatus === "Processing"
+                        ? "processing"
+                        : "required"
+                    }`}
+                  >
+                    {paymentStatus === "Payment Successful" ? (
+                      <CheckCircle2 size={18} />
+                    ) : paymentStatus === "Payment Failed" ? (
+                      <CircleAlert size={18} />
+                    ) : paymentStatus === "Processing" ? (
+                      <Clock3 size={18} />
+                    ) : (
+                      <Coins size={18} />
+                    )}
+
+                    {paymentStatus}
+                  </div>
+                </div>
+
+                <div className="task-payment-status">
+                  <div className="task-payment-status-label">
+                    Transaction
+                  </div>
+
+                  <div
+                    className={`task-payment-status-value ${
+                      transactionStatus === "Completed"
+                        ? "success"
+                        : transactionStatus === "Failed"
+                        ? "failed"
+                        : transactionStatus === "Processing"
+                        ? "processing"
+                        : "required"
+                    }`}
+                  >
+                    {transactionStatus === "Completed" ? (
+                      <CheckCircle2 size={18} />
+                    ) : transactionStatus === "Failed" ? (
+                      <CircleAlert size={18} />
+                    ) : transactionStatus === "Processing" ? (
+                      <Clock3 size={18} />
+                    ) : (
+                      <ReceiptText size={18} />
+                    )}
+
+                    {transactionStatus}
+                  </div>
+                </div>
+
+              </div>
+
+              {transactionId && (
+                <div className="task-payment-transaction">
+                  <span className="task-payment-transaction-label">
+                    Transaction ID
+                  </span>
+
+                  <div className="task-payment-transaction-value">
+                    {transactionId}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {error && (
+              <div className="task-payment-error">
+                <CircleAlert size={19} />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <div className="task-payment-actions">
+              <button
+                type="button"
+                className="task-payment-pay"
+                onClick={handlePayment}
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <span className="task-payment-spinner" />
+                    Processing Payment...
+                  </>
+                ) : (
+                  <>
+                    <WalletCards size={18} style={{ verticalAlign: "-4px", marginRight: 8 }} />
+                    Pay {task.reward} USDC with Pera
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                className="task-payment-back-button"
+                onClick={() => navigate("/tasks")}
+              >
+                Back to Tasks
+              </button>
+            </div>
+
+            <p className="task-payment-note">
+              <Info size={16} />
+              <span>
+                Payment uses x402 on Algorand Testnet with USDC.
+                Pera Wallet will ask you to approve the transaction.
+              </span>
+            </p>
+
           </div>
-        )}
-
-        <button
-          onClick={handlePayment}
-          disabled={loading}
-          style={{
-            width: "100%",
-            marginTop: "20px",
-            padding: "15px",
-            border: "none",
-            borderRadius: "10px",
-            background: loading
-              ? "#9ca3af"
-              : "#16a34a",
-            color: "white",
-            fontSize: "16px",
-            fontWeight: "bold",
-            cursor: loading
-              ? "not-allowed"
-              : "pointer",
-          }}
-        >
-          {loading
-            ? "Processing Payment..."
-            : "Pay with Pera Wallet"}
-        </button>
-
-        <button
-          onClick={() =>
-            navigate("/tasks")
-          }
-          style={{
-            width: "100%",
-            marginTop: "10px",
-            padding: "12px",
-            border: "1px solid #ddd",
-            borderRadius: "10px",
-            background: "white",
-            cursor: "pointer",
-          }}
-        >
-          Back to Tasks
-        </button>
-
-        <p
-          style={{
-            marginTop: "20px",
-            fontSize: "13px",
-            color: "#666",
-          }}
-        >
-          Payment uses x402 on Algorand
-          Testnet with USDC. Pera Wallet
-          will ask you to approve the
-          transaction.
-        </p>
+        </div>
       </div>
+
+      <BottomNavigation active="tasks" />
     </div>
   );
+}
+
 }
 
 export default TaskPayment;

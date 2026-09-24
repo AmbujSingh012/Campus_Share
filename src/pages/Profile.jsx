@@ -1,26 +1,37 @@
+import API_BASE_URL from "../api";
 import {
-  connectPeraWallet,
-  reconnectPeraWallet,
-} from "../utils/peraX402";
-import {
+  ArrowLeft,
   ChevronRight,
   Edit3,
   History,
   LogOut,
   Settings,
   UserRound,
-  ArrowLeft,
   Save,
+  Wallet,
+  Bell,
+  ShieldCheck,
+  GraduationCap,
+  Package,
+  ListTodo,
+  Star,
+  CreditCard,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Header from "../components/Header";
 import BottomNavigation from "../components/BottomNavigation";
+import "./Profile.css";
+import {
+  connectPeraWallet,
+  reconnectPeraWallet,
+} from "../utils/peraX402";
 
 function Profile() {
   const navigate = useNavigate();
 
-  const savedUser = JSON.parse(localStorage.getItem("user") || "null");
+  const savedUser = JSON.parse(
+    localStorage.getItem("user") || "null"
+  );
 
   const [user, setUser] = useState(savedUser);
   const [activeSection, setActiveSection] = useState("profile");
@@ -34,37 +45,42 @@ function Profile() {
 
   const [email, setEmail] = useState(savedUser?.email || "");
   const [mobile, setMobile] = useState(savedUser?.mobile || "");
-  const [walletAddress, setWalletAddress] = useState(
-  savedUser?.wallet_address || ""
-);
+const [upiId, setUpiId] = useState(savedUser?.upi_id || "");
 
-const [walletConnecting, setWalletConnecting] = useState(false);
+  const [walletAddress, setWalletAddress] = useState(
+    savedUser?.wallet_address || ""
+  );
+
+  const [walletConnecting, setWalletConnecting] =
+    useState(false);
 
   const [notifications, setNotifications] = useState(true);
 
   const [transactions, setTransactions] = useState([]);
-  const [transactionsLoading, setTransactionsLoading] = useState(false);
+  const [transactionsLoading, setTransactionsLoading] =
+    useState(false);
 
-  // Redirect if user is not logged in
   useEffect(() => {
     if (!savedUser) {
       navigate("/login");
     }
   }, [savedUser, navigate]);
 
-  // Get latest profile data from backend
   const getProfile = async () => {
     try {
       if (!savedUser?.id) return;
 
       const response = await fetch(
-        `http://localhost:3000/api/profile/${savedUser.id}`
+        `${API_BASE_URL}/api/profile/${savedUser.id}`
       );
 
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        console.error("Profile fetch error:", data.message);
+        console.error(
+          "Profile fetch error:",
+          data.message
+        );
         return;
       }
 
@@ -73,18 +89,19 @@ const [walletConnecting, setWalletConnecting] = useState(false);
         ...data.profile,
       }));
     } catch (error) {
-      console.error("Profile connection error:", error);
+      console.error(
+        "Profile connection error:",
+        error
+      );
     }
   };
 
-  // Load latest profile data
   useEffect(() => {
     if (savedUser?.id) {
       getProfile();
     }
   }, [savedUser?.id]);
 
-  // Get transaction history from backend
   const getTransactions = async () => {
     try {
       setTransactionsLoading(true);
@@ -92,13 +109,12 @@ const [walletConnecting, setWalletConnecting] = useState(false);
       const token = localStorage.getItem("token");
 
       if (!token) {
-        console.error("No authentication token found");
         setTransactions([]);
         return;
       }
 
       const response = await fetch(
-        "http://localhost:3000/api/tasks/transactions/history",
+        `${API_BASE_URL}/api/tasks/transactions/history`,
         {
           method: "GET",
           headers: {
@@ -131,14 +147,12 @@ const [walletConnecting, setWalletConnecting] = useState(false);
     }
   };
 
-  // Load transactions whenever Transaction History is opened
   useEffect(() => {
     if (activeSection === "transactions") {
       getTransactions();
     }
   }, [activeSection]);
 
-  // Logout
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -146,28 +160,36 @@ const [walletConnecting, setWalletConnecting] = useState(false);
 
     navigate("/login");
   };
-const handleConnectWallet = async () => {
-  try {
-    setWalletConnecting(true);
 
-    const address = await connectPeraWallet();
+  const handleConnectWallet = async () => {
+    try {
+      setWalletConnecting(true);
 
-    if (!address) {
-      alert("Pera Wallet connection failed.");
-      return;
+      let address = await connectPeraWallet();
+
+      if (!address) {
+        address = await reconnectPeraWallet();
+      }
+
+      if (!address) {
+        alert("Pera Wallet connection failed.");
+        return;
+      }
+
+      setWalletAddress(address);
+      alert("Pera Wallet connected successfully!");
+    } catch (error) {
+      console.error("Pera Wallet error:", error);
+
+      alert(
+        error.message ||
+          "Failed to connect Pera Wallet."
+      );
+    } finally {
+      setWalletConnecting(false);
     }
+  };
 
-    setWalletAddress(address);
-
-    alert("Pera Wallet connected successfully!");
-  } catch (error) {
-    console.error("Pera Wallet error:", error);
-    alert(error.message || "Failed to connect Pera Wallet.");
-  } finally {
-    setWalletConnecting(false);
-  }
-};
-  // Save profile
   const handleSaveProfile = async () => {
     if (!name.trim() || !email.trim()) {
       alert("Name and email are required.");
@@ -178,27 +200,31 @@ const handleConnectWallet = async () => {
       const token = localStorage.getItem("token");
 
       const response = await fetch(
-        "http://localhost:3000/api/auth/profile",
+        `${API_BASE_URL}/api/auth/profile`,
         {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-        body: JSON.stringify({
-  id: user.id,
-  name: name.trim(),
-  email: email.trim(),
-  mobile: mobile.trim() || null,
-  wallet_address: walletAddress || null,
-}),
+          body: JSON.stringify({
+            id: user.id,
+            name: name.trim(),
+            email: email.trim(),
+            mobile: mobile.trim() || null,
+            upi_id: upiId.trim() || null,
+            wallet_address: walletAddress || null,
+          }),
         }
       );
 
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        alert(data.message || "Failed to update profile.");
+        alert(
+          data.message ||
+            "Failed to update profile."
+        );
         return;
       }
 
@@ -211,359 +237,26 @@ const handleConnectWallet = async () => {
       setName(data.user.name);
       setEmail(data.user.email);
       setMobile(data.user.mobile || "");
-      setWalletAddress(data.user.wallet_address || "");
+      setUpiId(data.user.upi_id || "");
+      setWalletAddress(
+        data.user.wallet_address || ""
+      );
 
       alert("Profile updated successfully!");
 
       setActiveSection("profile");
     } catch (error) {
-      console.error("Profile update error:", error);
+      console.error(
+        "Profile update error:",
+        error
+      );
+
       alert("Unable to connect to backend.");
     }
   };
 
-  // If user is not available
   if (!user) {
     return null;
-  }
-
-  // TRANSACTION HISTORY
-  if (activeSection === "transactions") {
-    return (
-      <div className="page">
-        <Header title="Transaction History" />
-
-        <main className="page-content">
-          <button
-            type="button"
-            className="profile-menu-item"
-            onClick={() => setActiveSection("profile")}
-          >
-            <ArrowLeft size={19} />
-            <span>Back to Profile</span>
-          </button>
-
-          <h2 style={{ marginTop: "20px" }}>
-            Transaction History
-          </h2>
-
-          {transactionsLoading ? (
-            <div
-              style={{
-                padding: "30px 10px",
-                textAlign: "center",
-              }}
-            >
-              <p>Loading transactions...</p>
-            </div>
-          ) : transactions.length === 0 ? (
-            <div
-              style={{
-                padding: "30px 10px",
-                textAlign: "center",
-              }}
-            >
-              <History size={40} />
-              <p>No transactions yet.</p>
-            </div>
-          ) : (
-            transactions.map((transaction, index) => (
-              <div
-                key={transaction.id || index}
-                style={{
-                  padding: "15px",
-                  marginTop: "12px",
-                  borderRadius: "12px",
-                  background: "#f8fafc",
-                  border: "1px solid #e5e7eb",
-                }}
-              >
-                <strong>
-                  Payment #{transaction.id || index + 1}
-                </strong>
-
-                <p>
-                  Task:{" "}
-                  {transaction.task_title || "Unknown task"}
-                </p>
-
-                <p>
-                  Reward: ₹
-                  {transaction.reward !== null &&
-                  transaction.reward !== undefined
-                    ? transaction.reward
-                    : "0"}
-                </p>
-
-                <p>
-                  Payment Status:{" "}
-                  {transaction.payment_status || "Pending"}
-                </p>
-
-                <p>
-                  Acceptance Status:{" "}
-                  {transaction.status || "Unknown"}
-                </p>
-
-                {transaction.payment_transaction_id && (
-                  <p
-                    style={{
-                      wordBreak: "break-all",
-                    }}
-                  >
-                    Transaction ID:{" "}
-                    {transaction.payment_transaction_id}
-                  </p>
-                )}
-
-                {transaction.payment_network && (
-                  <p>
-                    Network:{" "}
-                    {transaction.payment_network}
-                  </p>
-                )}
-
-                {transaction.payment_amount && (
-                  <p>
-                    Payment Amount:{" "}
-                    {transaction.payment_amount}
-                  </p>
-                )}
-
-                {transaction.paid_at && (
-                  <p>
-                    Paid At:{" "}
-                    {new Date(
-                      transaction.paid_at
-                    ).toLocaleString()}
-                  </p>
-                )}
-
-                {transaction.accepted_at && (
-                  <p>
-                    Accepted At:{" "}
-                    {new Date(
-                      transaction.accepted_at
-                    ).toLocaleString()}
-                  </p>
-                )}
-              </div>
-            ))
-          )}
-        </main>
-
-        <BottomNavigation active="profile" />
-      </div>
-    );
-  }
-
-  // EDIT PROFILE
-  if (activeSection === "edit") {
-    return (
-      <div className="page">
-        <Header title="Edit Profile" />
-
-        <main className="page-content">
-          <button
-            type="button"
-            className="profile-menu-item"
-            onClick={() => setActiveSection("profile")}
-          >
-            <ArrowLeft size={19} />
-            <span>Back to Profile</span>
-          </button>
-
-          <div style={{ marginTop: "25px" }}>
-            <label>Full Name</label>
-
-            <input
-              type="text"
-              value={name}
-              onChange={(e) =>
-                setName(e.target.value)
-              }
-              placeholder="Enter your name"
-              style={{
-                width: "100%",
-                padding: "12px",
-                marginTop: "8px",
-                marginBottom: "18px",
-                borderRadius: "8px",
-                border: "1px solid #d1d5db",
-              }}
-            />
-
-            <label>Email</label>
-
-            <input
-              type="email"
-              value={email}
-              onChange={(e) =>
-                setEmail(e.target.value)
-              }
-              placeholder="Enter your email"
-              style={{
-                width: "100%",
-                padding: "12px",
-                marginTop: "8px",
-                marginBottom: "20px",
-                borderRadius: "8px",
-                border: "1px solid #d1d5db",
-              }}
-            />
-            <label>Mobile Number</label>
-            <input
-              type="tel"
-              value={mobile}
-              onChange={(e) => setMobile(e.target.value)}
-              placeholder="Enter your mobile number"
-              style={{
-                width: "100%",
-                padding: "12px",
-                marginTop: "8px",
-                marginBottom: "20px",
-                borderRadius: "8px",
-                border: "1px solid #d1d5db",
-              }}
-            />
-
-            <div
-  style={{
-    marginBottom: "20px",
-    padding: "15px",
-    borderRadius: "10px",
-    background: "#f8fafc",
-    border: "1px solid #e5e7eb",
-  }}
->
-  <label
-    style={{
-      display: "block",
-      fontWeight: "600",
-      marginBottom: "10px",
-    }}
-  >
-    Pera Wallet
-  </label>
-
-  {walletAddress ? (
-    <>
-      <p
-        style={{
-          fontSize: "12px",
-          wordBreak: "break-all",
-          marginBottom: "10px",
-        }}
-      >
-        {walletAddress}
-      </p>
-
-      <button
-        type="button"
-        onClick={handleConnectWallet}
-        disabled={walletConnecting}
-      >
-        {walletConnecting
-          ? "Connecting..."
-          : "Change Pera Wallet"}
-      </button>
-    </>
-  ) : (
-    <button
-      type="button"
-      onClick={handleConnectWallet}
-      disabled={walletConnecting}
-    >
-      {walletConnecting
-        ? "Connecting..."
-        : "Connect Pera Wallet"}
-    </button>
-  )}
-</div>
-
-            <button
-              type="button"
-              className="logout-button"
-              onClick={handleSaveProfile}
-            >
-              <Save size={18} />
-              Save Changes
-            </button>
-          </div>
-        </main>
-
-        <BottomNavigation active="profile" />
-      </div>
-    );
-  }
-
-  // SETTINGS
-  if (activeSection === "settings") {
-    return (
-      <div className="page">
-        <Header title="Settings" />
-
-        <main className="page-content">
-          <button
-            type="button"
-            className="profile-menu-item"
-            onClick={() => setActiveSection("profile")}
-          >
-            <ArrowLeft size={19} />
-            <span>Back to Profile</span>
-          </button>
-
-          <div
-            className="profile-menu-item"
-            style={{ marginTop: "20px" }}
-          >
-            <Settings size={19} />
-
-            <span>Notifications</span>
-
-            <input
-              type="checkbox"
-              checked={notifications}
-              onChange={(e) =>
-                setNotifications(e.target.checked)
-              }
-            />
-          </div>
-
-          <div
-            className="profile-menu-item"
-            style={{ marginTop: "10px" }}
-          >
-            <span>Account</span>
-
-            <span
-              style={{
-                marginLeft: "auto",
-              }}
-            >
-              Active
-            </span>
-          </div>
-
-          <div
-            className="profile-menu-item"
-            style={{ marginTop: "10px" }}
-          >
-            <span>College Account</span>
-
-            <span
-              style={{
-                marginLeft: "auto",
-              }}
-            >
-              Connected
-            </span>
-          </div>
-        </main>
-
-        <BottomNavigation active="profile" />
-      </div>
-    );
   }
 
   const studentName =
@@ -575,123 +268,726 @@ const handleConnectWallet = async () => {
   const studentEmail =
     user.email || "No email available";
 
-  // MAIN PROFILE
-  return (
-    <div className="page">
-      <Header
-        title="Profile"
-        showSettings
-      />
+  const selectedCollege = JSON.parse(
+    localStorage.getItem("selectedCollege") || "null"
+  );
 
-      <main className="page-content">
-        <section className="profile-header">
-          <div className="profile-avatar">
-            <UserRound size={34} />
-          </div>
+  const collegeName =
+    selectedCollege?.name ||
+    "Your Campus";
 
-          <h2>{studentName}</h2>
+  const rating =
+  user.averageRating > 0
+    ? Number(user.averageRating).toFixed(1)
+    : "—";
 
-          <p>{studentEmail}</p>
+const ratingCount = Number(user.ratingCount || 0);
 
-          <div className="profile-rating">
-            ⭐ {user.averageRating > 0 ? user.averageRating : "No ratings"}
-          </div>
-        </section>
+  if (activeSection === "transactions") {
+    return (
+      <div className="profile-modern-page app-page-frame">
+        <div className="profile-modern-shell">
+          <header className="profile-modern-topbar">
+            <button
+              type="button"
+              className="profile-modern-back"
+              onClick={() =>
+                setActiveSection("profile")
+              }
+            >
+              <ArrowLeft size={20} />
+            </button>
 
-        <div className="profile-stats">
-          <div>
-            <strong>{user.postedResources || 0}</strong>
-            <span>Resources</span>
-          </div>
+            <div className="profile-modern-top-title">
+              Transaction History
+            </div>
 
-          <div>
-            <strong>{user.postedTasks || 0}</strong>
-            <span>Tasks</span>
-          </div>
+            <div className="profile-modern-top-space" />
+          </header>
 
-          <div>
-            <strong>{user.averageRating > 0 ? user.averageRating : "—"}</strong>
-            <span>Rating</span>
-          </div>
+          <main className="profile-modern-content">
+            <section className="profile-page-heading">
+              <span className="profile-eyebrow">
+                YOUR ACTIVITY
+              </span>
+
+              <h1>
+                Money moves
+                <span> at a glance.</span>
+              </h1>
+
+              <p>
+                Track task payments, rewards and
+                completed transactions.
+              </p>
+            </section>
+
+            {transactionsLoading ? (
+              <div className="profile-empty-card">
+                <div className="profile-empty-icon">
+                  <History size={26} />
+                </div>
+
+                <strong>
+                  Loading transactions...
+                </strong>
+              </div>
+            ) : transactions.length === 0 ? (
+              <div className="profile-empty-card">
+                <div className="profile-empty-icon">
+                  <CreditCard size={27} />
+                </div>
+
+                <strong>
+                  No transactions yet
+                </strong>
+
+                <span>
+                  Your task payments will appear
+                  here after you start using
+                  CampusShare.
+                </span>
+              </div>
+            ) : (
+              <div className="profile-transactions">
+                {transactions.map(
+                  (transaction, index) => (
+                    <article
+                      className="profile-transaction-card"
+                      key={
+                        transaction.id || index
+                      }
+                    >
+                      <div className="profile-transaction-top">
+                        <div className="profile-transaction-icon">
+                          <CreditCard size={20} />
+                        </div>
+
+                        <div>
+                          <strong>
+                            Payment #
+                            {transaction.id ||
+                              index + 1}
+                          </strong>
+
+                          <span>
+                            {transaction.task_title ||
+                              "Campus task"}
+                          </span>
+                        </div>
+
+                        <span className="profile-status-pill">
+                          {transaction.payment_status ||
+                            "Pending"}
+                        </span>
+                      </div>
+
+                      <div className="profile-transaction-grid">
+                        <div>
+                          <span>Reward</span>
+                          <strong>
+  ₹{Number(transaction.reward ?? 0).toFixed(2)}
+</strong>
+                        </div>
+
+                        <div>
+                          <span>Acceptance</span>
+                          <strong>
+                            {transaction.status ||
+                              "Unknown"}
+                          </strong>
+                        </div>
+                      </div>
+
+                      {transaction.payment_transaction_id && (
+                        <div className="profile-tx-id">
+                          <span>
+                            Transaction ID
+                          </span>
+
+                          <strong>
+                            {
+                              transaction.payment_transaction_id
+                            }
+                          </strong>
+                        </div>
+                      )}
+
+                      {transaction.payment_network && (
+                        <div className="profile-tx-meta">
+                          Network:{" "}
+                          {transaction.payment_network}
+                        </div>
+                      )}
+
+                      {transaction.paid_at && (
+                        <div className="profile-tx-meta">
+                          Paid:{" "}
+                          {new Date(
+                            transaction.paid_at
+                          ).toLocaleString()}
+                        </div>
+                      )}
+
+                      {transaction.accepted_at && (
+                        <div className="profile-tx-meta">
+                          Accepted:{" "}
+                          {new Date(
+                            transaction.accepted_at
+                          ).toLocaleString()}
+                        </div>
+                      )}
+                    </article>
+                  )
+                )}
+              </div>
+            )}
+          </main>
         </div>
 
-        <div className="profile-menu">
-         <button
-  type="button"
-  className="profile-menu-item"
-  onClick={() => navigate("/my-resources")}
->
-  <UserRound size={19} />
-  <span>My Resources</span>
-  <ChevronRight size={17} />
-</button>
+        <BottomNavigation active="profile" />
+      </div>
+    );
+  }
 
+  if (activeSection === "edit") {
+    return (
+      <div className="profile-modern-page">
+        <div className="profile-modern-shell">
+          <header className="profile-modern-topbar">
+            <button
+              type="button"
+              className="profile-modern-back"
+              onClick={() =>
+                setActiveSection("profile")
+              }
+            >
+              <ArrowLeft size={20} />
+            </button>
+
+            <div className="profile-modern-top-title">
+              Edit Profile
+            </div>
+
+            <div className="profile-modern-top-space" />
+          </header>
+
+          <main className="profile-modern-content">
+            <section className="profile-page-heading">
+              <span className="profile-eyebrow">
+                YOUR IDENTITY
+              </span>
+
+              <h1>
+                Make it
+                <span> yours.</span>
+              </h1>
+
+              <p>
+                Keep your CampusShare profile
+                information up to date.
+              </p>
+            </section>
+
+            <section className="profile-edit-card">
+              <div className="profile-edit-avatar">
+                <UserRound size={32} />
+              </div>
+
+              <div className="profile-form-grid">
+                <div className="profile-form-field full">
+                  <label>Full name</label>
+
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(event) =>
+                      setName(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Enter your name"
+                  />
+                </div>
+
+                <div className="profile-form-field">
+                  <label>Email</label>
+
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(event) =>
+                      setEmail(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Enter your email"
+                  />
+                </div>
+
+                <div className="profile-form-field">
+                  <label>Mobile number</label>
+
+                  <input
+                    type="tel"
+                    value={mobile}
+                    onChange={(event) =>
+                      setMobile(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Enter your mobile"
+                  />
+                </div>
+
+                <div className="profile-form-field">
+                  <label>UPI ID</label>
+
+                  <input
+                    type="text"
+                    value={upiId}
+                    onChange={(event) =>
+                      setUpiId(event.target.value)
+                    }
+                    placeholder="example@upi"
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section className="profile-wallet-card">
+              <div className="profile-wallet-heading">
+                <div className="profile-wallet-icon">
+                  <Wallet size={21} />
+                </div>
+
+                <div>
+                  <strong>
+                    Pera Wallet
+                  </strong>
+
+                  <span>
+                    Connect your Algorand wallet
+                    for CampusShare payments.
+                  </span>
+                </div>
+              </div>
+
+              {walletAddress ? (
+                <>
+                  <div className="profile-wallet-address">
+                    {walletAddress}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="profile-secondary-button"
+                    onClick={
+                      handleConnectWallet
+                    }
+                    disabled={walletConnecting}
+                  >
+                    {walletConnecting
+                      ? "Connecting..."
+                      : "Change wallet"}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="profile-wallet-connect"
+                  onClick={
+                    handleConnectWallet
+                  }
+                  disabled={walletConnecting}
+                >
+                  <Wallet size={18} />
+
+                  {walletConnecting
+                    ? "Connecting..."
+                    : "Connect Pera Wallet"}
+                </button>
+              )}
+            </section>
+
+            <button
+              type="button"
+              className="profile-save-button"
+              onClick={handleSaveProfile}
+            >
+              <Save size={18} />
+              Save changes
+            </button>
+          </main>
+        </div>
+
+        <BottomNavigation active="profile" />
+      </div>
+    );
+  }
+
+  if (activeSection === "settings") {
+    return (
+      <div className="profile-modern-page">
+        <div className="profile-modern-shell">
+          <header className="profile-modern-topbar">
+            <button
+              type="button"
+              className="profile-modern-back"
+              onClick={() =>
+                setActiveSection("profile")
+              }
+            >
+              <ArrowLeft size={20} />
+            </button>
+
+            <div className="profile-modern-top-title">
+              Settings
+            </div>
+
+            <div className="profile-modern-top-space" />
+          </header>
+
+          <main className="profile-modern-content">
+            <section className="profile-page-heading">
+              <span className="profile-eyebrow">
+                PREFERENCES
+              </span>
+
+              <h1>
+                Your space,
+                <span> your rules.</span>
+              </h1>
+
+              <p>
+                Manage notifications and account
+                connections.
+              </p>
+            </section>
+
+            <section className="profile-settings-card">
+              <div className="profile-setting-row">
+                <div className="profile-setting-icon">
+                  <Bell size={19} />
+                </div>
+
+                <div className="profile-setting-copy">
+                  <strong>Notifications</strong>
+
+                  <span>
+                    Stay updated about tasks,
+                    resources and payments.
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  className={
+                    notifications
+                      ? "profile-toggle active"
+                      : "profile-toggle"
+                  }
+                  onClick={() =>
+                    setNotifications(
+                      !notifications
+                    )
+                  }
+                >
+                  <span />
+                </button>
+              </div>
+
+              <div className="profile-setting-row">
+                <div className="profile-setting-icon">
+                  <ShieldCheck size={19} />
+                </div>
+
+                <div className="profile-setting-copy">
+                  <strong>Account</strong>
+
+                  <span>
+                    Your CampusShare account is
+                    active.
+                  </span>
+                </div>
+
+                <span className="profile-connected">
+                  Active
+                </span>
+              </div>
+
+              <div className="profile-setting-row">
+                <div className="profile-setting-icon">
+                  <GraduationCap size={19} />
+                </div>
+
+                <div className="profile-setting-copy">
+                  <strong>
+                    College account
+                  </strong>
+
+                  <span>
+                    Currently connected to{" "}
+                    {collegeName}.
+                  </span>
+                </div>
+
+                <span className="profile-connected">
+                  Connected
+                </span>
+              </div>
+            </section>
+
+            <button
+              type="button"
+              className="profile-switch-campus"
+              onClick={() => navigate("/")}
+            >
+              Switch campus
+              <ChevronRight size={18} />
+            </button>
+          </main>
+        </div>
+
+        <BottomNavigation active="profile" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="profile-modern-page">
+      <div className="profile-modern-shell">
+        <header className="profile-modern-topbar">
           <button
             type="button"
-            className="profile-menu-item"
-            onClick={() =>
-              navigate("/tasks")
-            }
+            className="profile-modern-back"
+            onClick={() => navigate("/home")}
           >
-            <Edit3 size={19} />
-
-            <span>My Tasks</span>
-
-            <ChevronRight size={17} />
+            <ArrowLeft size={20} />
           </button>
 
-          <button
-            type="button"
-            className="profile-menu-item"
-            onClick={() =>
-              setActiveSection("transactions")
-            }
-          >
-            <History size={19} />
-
-            <span>Transaction History</span>
-
-            <ChevronRight size={17} />
-          </button>
+          <div className="profile-modern-campus">
+            <span className="profile-campus-dot" />
+            {collegeName}
+          </div>
 
           <button
             type="button"
-            className="profile-menu-item"
-            onClick={() =>
-              setActiveSection("edit")
-            }
-          >
-            <Edit3 size={19} />
-
-            <span>Edit Profile</span>
-
-            <ChevronRight size={17} />
-          </button>
-
-          <button
-            type="button"
-            className="profile-menu-item"
+            className="profile-settings-button"
             onClick={() =>
               setActiveSection("settings")
             }
           >
             <Settings size={19} />
-
-            <span>Settings</span>
-
-            <ChevronRight size={17} />
           </button>
-        </div>
+        </header>
 
-        <button
-          type="button"
-          className="logout-button"
-          onClick={handleLogout}
-        >
-          <LogOut size={18} />
-          Logout
-        </button>
-      </main>
+        <main className="profile-modern-content">
+          <section className="profile-hero">
+            <div className="profile-hero-top">
+              <div className="profile-big-avatar">
+                <UserRound size={40} />
+              </div>
+
+              <div className="profile-hero-info">
+                <span className="profile-eyebrow">
+                  CAMPUS MEMBER
+                </span>
+
+                <h1>{studentName}</h1>
+
+                <p>{studentEmail}</p>
+              </div>
+
+              <button
+                type="button"
+                className="profile-edit-icon"
+                onClick={() =>
+                  setActiveSection("edit")
+                }
+                aria-label="Edit profile"
+              >
+                <Edit3 size={18} />
+              </button>
+            </div>
+
+            <div className="profile-campus-badge">
+              <GraduationCap size={15} />
+              <span>{collegeName}</span>
+            </div>
+
+            <div className="profile-rating-line">
+              <div>
+                <Star size={15} fill="currentColor" />
+                <strong>{rating}</strong>
+                <span>
+  {ratingCount > 0
+    ? `based on ${ratingCount} ${
+        ratingCount === 1 ? "rating" : "ratings"
+      }`
+    : "No ratings yet"}
+</span>
+              </div>
+
+              <span className="profile-verified">
+                <ShieldCheck size={14} />
+                Verified student
+              </span>
+            </div>
+          </section>
+
+          <section className="profile-stats-modern">
+            <div>
+              <Package size={18} />
+              <strong>
+                {user.postedResources || 0}
+              </strong>
+              <span>Resources</span>
+            </div>
+
+            <div>
+              <ListTodo size={18} />
+              <strong>
+                {user.postedTasks || 0}
+              </strong>
+              <span>Tasks</span>
+            </div>
+
+            <div>
+              <Star size={18} />
+              <strong>{rating}</strong>
+              <span>Rating</span>
+            </div>
+          </section>
+
+          <section className="profile-menu-modern">
+            <div className="profile-menu-label">
+              YOUR CAMPUS ACTIVITY
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                navigate("/my-resources")
+              }
+            >
+              <div className="profile-menu-icon blue">
+                <Package size={19} />
+              </div>
+
+              <div className="profile-menu-copy">
+                <strong>My Resources</strong>
+                <span>
+                  Manage what you have shared
+                </span>
+              </div>
+
+              <ChevronRight size={18} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                navigate("/my-tasks")
+              }
+            >
+              <div className="profile-menu-icon purple">
+                <ListTodo size={19} />
+              </div>
+
+              <div className="profile-menu-copy">
+                <strong>My Tasks</strong>
+                <span>
+                  See tasks you have posted
+                </span>
+              </div>
+
+              <ChevronRight size={18} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                setActiveSection(
+                  "transactions"
+                )
+              }
+            >
+              <div className="profile-menu-icon green">
+                <History size={19} />
+              </div>
+
+              <div className="profile-menu-copy">
+                <strong>
+                  Transaction History
+                </strong>
+
+                <span>
+                  View your payment activity
+                </span>
+              </div>
+
+              <ChevronRight size={18} />
+            </button>
+          </section>
+
+          <section className="profile-menu-modern">
+            <div className="profile-menu-label">
+              ACCOUNT
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setActiveSection("edit")
+              }
+            >
+              <div className="profile-menu-icon orange">
+                <Edit3 size={19} />
+              </div>
+
+              <div className="profile-menu-copy">
+                <strong>Edit Profile</strong>
+                <span>
+                  Update your personal details
+                </span>
+              </div>
+
+              <ChevronRight size={18} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                setActiveSection("settings")
+              }
+            >
+              <div className="profile-menu-icon slate">
+                <Settings size={19} />
+              </div>
+
+              <div className="profile-menu-copy">
+                <strong>Settings</strong>
+                <span>
+                  Notifications and account
+                  preferences
+                </span>
+              </div>
+
+              <ChevronRight size={18} />
+            </button>
+          </section>
+
+          <button
+            type="button"
+            className="profile-logout-button"
+            onClick={handleLogout}
+          >
+            <LogOut size={18} />
+            Logout
+          </button>
+        </main>
+      </div>
 
       <BottomNavigation active="profile" />
     </div>

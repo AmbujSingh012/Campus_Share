@@ -1,3 +1,5 @@
+import API_BASE_URL from "../api";
+import "./ResourceCard.css";
 import { CheckCircle, Star, MapPin } from "lucide-react";
 
 function ResourceCard({
@@ -8,49 +10,31 @@ function ResourceCard({
   location = "Campus",
   imageUrl,
   onBorrow,
+  showImage = true,
 }) {
   return (
     <div className="resource-card">
+      {showImage && (
+        <div className="resource-image">
+          {imageUrl ? (
+            <img
+              src={`${API_BASE_URL}${imageUrl}`}
+              alt={name}
+              onError={(e) => {
+                console.error(
+                  "Image failed to load:",
+                  `${API_BASE_URL}${imageUrl}`
+                );
+                e.currentTarget.style.display = "none";
+              }}
+            />
+          ) : (
+            <span>Image</span>
+          )}
+        </div>
+      )}
 
-      {/* Image */}
-      <div
-  className="resource-image"
-  style={{
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    overflow: "hidden",
-  }}
->
-        {imageUrl ? (
-          <img
-            src={`http://localhost:3000${imageUrl}`}
-            alt={name}
-    style={{
-  width: "100%",
-  height: "160px",
-  objectFit: "cover",
-  objectPosition: "center",
-  borderRadius: "12px",
-  display: "block",
-}}
-            onError={(e) => {
-              console.error(
-                "Image failed to load:",
-                `http://localhost:3000${imageUrl}`
-              );
-
-              e.currentTarget.style.display = "none";
-            }}
-          />
-        ) : (
-          <span>Image</span>
-        )}
-      </div>
-
-      {/* Resource Information */}
       <div className="resource-info">
-
         <div className="resource-title-row">
           <h3>{name}</h3>
 
@@ -68,20 +52,12 @@ function ResourceCard({
           Owner: {owner}
         </p>
 
-        <p
-          className="location"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "5px",
-          }}
-        >
+        <p className="location">
           <MapPin size={14} />
           {location}
         </p>
 
         <div className="resource-bottom">
-
           <span className="available">
             <CheckCircle size={14} />
             Available
@@ -93,9 +69,7 @@ function ResourceCard({
           >
             Borrow
           </button>
-
         </div>
-
       </div>
     </div>
   );

@@ -1,9 +1,15 @@
 import { useState } from "react";
-import { ImagePlus } from "lucide-react";
+import {
+  ArrowLeft,
+  ImagePlus,
+  MapPin,
+  PackagePlus,
+  ShieldCheck,
+  Wallet,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
-import Header from "../components/Header";
 import BottomNavigation from "../components/BottomNavigation";
+import "./PostResource.css";
 import { createResource } from "../api";
 
 function PostResource() {
@@ -16,28 +22,32 @@ function PostResource() {
   const [condition, setCondition] = useState("Excellent");
   const [availability, setAvailability] = useState(true);
   const [borrowingFee, setBorrowingFee] = useState("");
-
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
-
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  const selectedCollege = JSON.parse(
+    localStorage.getItem("selectedCollege") || "null"
+  );
 
   const handleImageChange = (event) => {
     const file = event.target.files[0];
 
     if (!file) return;
 
-    // Check file type
-    const allowedTypes = ["image/png", "image/jpeg", "image/jpg"];
+    const allowedTypes = [
+      "image/png",
+      "image/jpeg",
+      "image/jpg",
+    ];
 
     if (!allowedTypes.includes(file.type)) {
       setError("Please select a PNG or JPG image.");
       return;
     }
 
-    // Check file size - 5MB
     if (file.size > 5 * 1024 * 1024) {
       setError("Image size must be less than 5MB.");
       return;
@@ -92,7 +102,9 @@ function PostResource() {
         description: description.trim(),
         category,
         location: location.trim(),
-        availability: availability ? "Available" : "Unavailable",
+        availability: availability
+          ? "Available"
+          : "Unavailable",
         condition,
         borrowingFee,
         image,
@@ -132,283 +144,319 @@ function PostResource() {
   };
 
   return (
-    <div className="page">
-      <Header title="Post Resource" showBack />
-
-      <main className="page-content">
-        <p className="form-description">
-          Share an item with students on your campus
-        </p>
-
-        {message && (
-          <div
-            style={{
-              backgroundColor: "#dcfce7",
-              color: "#166534",
-              padding: "12px 16px",
-              borderRadius: "8px",
-              marginBottom: "16px",
-              fontWeight: "600",
-            }}
+    <div className="post-resource-modern-page app-page-frame">
+      <div className="post-resource-shell">
+        <header className="post-resource-topbar">
+          <button
+            className="post-resource-back"
+            type="button"
+            onClick={() => navigate("/resources")}
+            aria-label="Back to resources"
           >
-            {message}
+            <ArrowLeft size={20} />
+          </button>
+
+          <div className="post-resource-campus">
+            <span className="post-resource-campus-dot"></span>
+            <span>
+              {selectedCollege?.name || "Your Campus"}
+            </span>
           </div>
-        )}
 
-        {error && (
-          <div
-            style={{
-              backgroundColor: "#fee2e2",
-              color: "#991b1b",
-              padding: "12px 16px",
-              borderRadius: "8px",
-              marginBottom: "16px",
-              fontWeight: "600",
-            }}
-          >
-            {error}
+          <div className="post-resource-top-label">
+            Share
           </div>
-        )}
+        </header>
 
-        {/* IMAGE UPLOAD */}
-        <label
-          className="upload-box"
-          style={{
-            display: "block",
-            cursor: "pointer",
-            textAlign: "center",
-            padding: "20px",
-          }}
-        >
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/jpg"
-            onChange={handleImageChange}
-            disabled={loading}
-            style={{ display: "none" }}
-          />
-
-          {imagePreview ? (
+        <main className="post-resource-content">
+          <section className="post-resource-intro">
             <div>
-              <img
-                src={imagePreview}
-                alt="Resource preview"
-                style={{
-                  width: "100%",
-                  maxWidth: "300px",
-                  height: "200px",
-                  objectFit: "cover",
-                  borderRadius: "10px",
-                  marginBottom: "10px",
-                }}
-              />
+              <span className="post-resource-eyebrow">
+                SHARE WITH YOUR CAMPUS
+              </span>
 
-              <p
-                style={{
-                  margin: 0,
-                  fontWeight: "600",
-                }}
-              >
-                {image.name}
-              </p>
-
-              <p
-                style={{
-                  marginTop: "5px",
-                  fontSize: "14px",
-                }}
-              >
-                Click to change image
-              </p>
-            </div>
-          ) : (
-            <>
-              <ImagePlus size={30} />
-
-              <h3>Upload Resource Image</h3>
-
-              <p>PNG, JPG up to 5MB</p>
-            </>
-          )}
-        </label>
-
-        <form
-          className="resource-form"
-          onSubmit={handleSubmit}
-        >
-          {/* Resource Name */}
-          <div className="form-group">
-            <label className="form-label">
-              Resource Name
-            </label>
-
-            <input
-              className="form-input"
-              type="text"
-              placeholder="Enter resource name"
-              value={title}
-              onChange={(event) =>
-                setTitle(event.target.value)
-              }
-              disabled={loading}
-            />
-          </div>
-
-          {/* Category */}
-          <div className="form-group">
-            <label className="form-label">
-              Category
-            </label>
-
-            <select
-              className="form-input"
-              value={category}
-              onChange={(event) =>
-                setCategory(event.target.value)
-              }
-              disabled={loading}
-            >
-              <option value="">
-                Select category
-              </option>
-
-              <option value="Books">Books</option>
-              <option value="Electronics">
-                Electronics
-              </option>
-              <option value="Sports">Sports</option>
-              <option value="Clothing">Clothing</option>
-              <option value="Study Materials">
-                Study Materials
-              </option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-
-          {/* Description */}
-          <div className="form-group">
-            <label className="form-label">
-              Description
-            </label>
-
-            <textarea
-              className="form-input textarea"
-              placeholder="Describe your resource"
-              rows="4"
-              value={description}
-              onChange={(event) =>
-                setDescription(event.target.value)
-              }
-              disabled={loading}
-            />
-          </div>
-
-          {/* Condition */}
-          <div className="form-group">
-            <label className="form-label">
-              Condition
-            </label>
-
-            <div className="condition-options">
-              {[
-                "Excellent",
-                "Good",
-                "Fair",
-                "Needs Repair",
-              ].map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  className={`condition-button ${
-                    condition === option
-                      ? "active"
-                      : ""
-                  }`}
-                  onClick={() =>
-                    setCondition(option)
-                  }
-                  disabled={loading}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Availability */}
-          <div className="availability-row">
-            <div>
-              <label className="form-label">
-                Availability
-              </label>
+              <h1>
+                Give your stuff
+                <span> a second life.</span>
+              </h1>
 
               <p>
-                Allow students to borrow this resource
+                List something useful and let students
+                around your campus borrow it when they
+                need it.
               </p>
             </div>
 
-            <input
-              type="checkbox"
-              checked={availability}
-              onChange={(event) =>
-                setAvailability(event.target.checked)
-              }
-              disabled={loading}
-            />
-          </div>
+            <div className="post-resource-intro-icon">
+              <PackagePlus size={30} />
+            </div>
+          </section>
 
-          {/* Borrowing Fee */}
-          <div className="form-group">
-            <label className="form-label">
-              Borrowing Fee
-            </label>
+          {message && (
+            <div className="post-resource-success">
+              <ShieldCheck size={20} />
+              <div>
+                <strong>{message}</strong>
+                <span>Taking you back to resources...</span>
+              </div>
+            </div>
+          )}
 
-            <input
-              className="form-input"
-              type="text"
-              placeholder="0.10 USDC"
-              value={borrowingFee}
-              onChange={(event) =>
-                setBorrowingFee(event.target.value)
-              }
-              disabled={loading}
-            />
+          {error && (
+            <div className="post-resource-error">
+              <strong>Couldn&apos;t post resource</strong>
+              <span>{error}</span>
+            </div>
+          )}
 
-            <p className="input-helper">
-              Leave as 0 if you want to lend it for free.
-            </p>
-          </div>
-
-          {/* Pickup Location */}
-          <div className="form-group">
-            <label className="form-label">
-              Pickup Location
-            </label>
-
-            <input
-              className="form-input"
-              type="text"
-              placeholder="Library Block A"
-              value={location}
-              onChange={(event) =>
-                setLocation(event.target.value)
-              }
-              disabled={loading}
-            />
-          </div>
-
-          {/* Submit */}
-          <button
-            type="submit"
-            className="primary-button"
-            disabled={loading}
+          <form
+            className="post-resource-form"
+            onSubmit={handleSubmit}
           >
-            {loading
-              ? "Posting Resource..."
-              : "Post Resource"}
-          </button>
-        </form>
-      </main>
+            <section className="post-resource-card">
+              <div className="post-resource-section-heading">
+                <div>
+                  <span>01</span>
+                  <h2>Show your resource</h2>
+                </div>
+
+                <p>Add a clear photo so people know what
+                  they&apos;re borrowing.</p>
+              </div>
+
+              <label className="post-resource-upload">
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg"
+                  onChange={handleImageChange}
+                  disabled={loading}
+                />
+
+                {imagePreview ? (
+                  <div className="post-resource-preview">
+                    <img
+                      src={imagePreview}
+                      alt="Resource preview"
+                    />
+
+                    <div className="post-resource-preview-info">
+                      <strong>{image.name}</strong>
+                      <span>Click to change image</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="post-resource-upload-empty">
+                    <div className="post-resource-upload-icon">
+                      <ImagePlus size={25} />
+                    </div>
+
+                    <strong>Upload a resource photo</strong>
+
+                    <span>
+                      PNG or JPG · Maximum 5MB
+                    </span>
+                  </div>
+                )}
+              </label>
+            </section>
+
+            <section className="post-resource-card">
+              <div className="post-resource-section-heading">
+                <div>
+                  <span>02</span>
+                  <h2>Tell students about it</h2>
+                </div>
+
+                <p>Keep the details simple and useful.</p>
+              </div>
+
+              <div className="post-resource-fields">
+                <div className="post-resource-field full">
+                  <label>Resource name</label>
+
+                  <input
+                    type="text"
+                    placeholder="e.g. Casio scientific calculator"
+                    value={title}
+                    onChange={(event) =>
+                      setTitle(event.target.value)
+                    }
+                    disabled={loading}
+                  />
+                </div>
+
+                <div className="post-resource-field">
+                  <label>Category</label>
+
+                  <select
+                    value={category}
+                    onChange={(event) =>
+                      setCategory(event.target.value)
+                    }
+                    disabled={loading}
+                  >
+                    <option value="">
+                      Select category
+                    </option>
+                    <option value="Books">Books</option>
+                    <option value="Electronics">
+                      Electronics
+                    </option>
+                    <option value="Sports">Sports</option>
+                    <option value="Clothing">
+                      Clothing
+                    </option>
+                    <option value="Study Materials">
+                      Study Materials
+                    </option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div className="post-resource-field">
+                  <label>Condition</label>
+
+                  <div className="post-resource-condition-list">
+                    {[
+                      "Excellent",
+                      "Good",
+                      "Fair",
+                      "Needs Repair",
+                    ].map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        className={
+                          condition === option
+                            ? "post-resource-condition active"
+                            : "post-resource-condition"
+                        }
+                        onClick={() =>
+                          setCondition(option)
+                        }
+                        disabled={loading}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="post-resource-field full">
+                  <label>Description</label>
+
+                  <textarea
+                    placeholder="What is it, and what should someone know before borrowing it?"
+                    rows="5"
+                    value={description}
+                    onChange={(event) =>
+                      setDescription(event.target.value)
+                    }
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section className="post-resource-card">
+              <div className="post-resource-section-heading">
+                <div>
+                  <span>03</span>
+                  <h2>Set the borrowing details</h2>
+                </div>
+
+                <p>Choose where and how students can borrow it.</p>
+              </div>
+
+              <div className="post-resource-fields">
+                <div className="post-resource-field">
+                  <label>
+                    <MapPin size={14} />
+                    Pickup location
+                  </label>
+
+                  <input
+                    type="text"
+                    placeholder="e.g. Library Block A"
+                    value={location}
+                    onChange={(event) =>
+                      setLocation(event.target.value)
+                    }
+                    disabled={loading}
+                  />
+                </div>
+
+                <div className="post-resource-field">
+                  <label>
+                    <Wallet size={14} />
+                    Borrowing fee
+                  </label>
+
+                  <input
+                    type="text"
+                    placeholder="Enter Amount In INR"
+                    value={borrowingFee}
+                    onChange={(event) =>
+                      setBorrowingFee(event.target.value)
+                    }
+                    disabled={loading}
+                  />
+
+                  <small>
+                    Use 0 or leave empty for free borrowing.
+                  </small>
+                </div>
+              </div>
+
+              <div className="post-resource-availability">
+                <div>
+                  <strong>Available for borrowing      </strong>
+                  <span>
+                    Students can request this resource
+                    when enabled.
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  className={
+                    availability
+                      ? "post-resource-toggle active"
+                      : "post-resource-toggle"
+                  }
+                  onClick={() =>
+                    setAvailability(!availability)
+                  }
+                  disabled={loading}
+                  aria-label="Toggle availability"
+                >
+                  <span></span>
+                </button>
+              </div>
+            </section>
+
+            <div className="post-resource-submit-area">
+              <div>
+                <strong>Ready to share?</strong>
+                <span>
+                  Your resource will appear in the campus
+                  marketplace.
+                </span>
+              </div>
+
+              <button
+                type="submit"
+                className="post-resource-submit"
+                disabled={loading}
+              >
+                {loading
+                  ? "Posting resource..."
+                  : "Post resource"}
+              </button>
+            </div>
+          </form>
+        </main>
+      </div>
 
       <BottomNavigation active="post" />
     </div>

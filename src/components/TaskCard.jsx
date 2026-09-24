@@ -1,4 +1,5 @@
 import { Clock, MapPin } from "lucide-react";
+import "./TaskCard.css";
 
 function TaskCard({
   id,
@@ -29,7 +30,7 @@ function TaskCard({
       </div>
 
       <p className="task-budget">
-        Reward: {budget} USDC
+        Reward: {budget}
       </p>
 
       <div className="task-detail">

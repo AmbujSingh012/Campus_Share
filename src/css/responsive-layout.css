@@ -1,0 +1,486 @@
+/* =========================================
+   CAMPUSSHARE — SHARED RESPONSIVE LAYOUT
+   ========================================= */
+
+:root {
+  --app-max-width: 1180px;
+  --app-side-space: 24px;
+  --app-mobile-space: 16px;
+  --app-bottom-space: 110px;
+}
+
+/* Prevent width/spacing inconsistencies */
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  overflow-x: hidden;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+/* Main page wrappers */
+.college-page,
+.login-page,
+.auth-page,
+.home-modern-page,
+.resources-modern-page,
+.tasks-modern-page,
+.helper-page,
+.profile-modern-page,
+.my-resources-modern-page,
+.my-tasks-modern-page,
+.post-resource-modern-page,
+.post-task-modern-page,
+.edit-resource-page,
+.edit-resource-state-page,
+.transaction-history-page,
+.connection-details-page,
+.task-payment-page {
+  width: 100%;
+  min-width: 0;
+  min-height: 100vh;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* Shared desktop content width */
+.college-container,
+.login-container,
+.auth-shell,
+.home-modern-content,
+.resources-modern-shell,
+.tasks-modern-shell,
+.helper-shell,
+.profile-modern-shell,
+.my-resources-modern-shell,
+.my-tasks-modern-shell,
+.post-resource-shell,
+.post-task-shell,
+.edit-resource-shell,
+.transaction-history-shell,
+.connection-details-shell,
+.task-payment-shell {
+  width: min(100%, var(--app-max-width));
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+
+/* Shared horizontal safety */
+.college-container,
+.login-container,
+.auth-shell,
+.home-modern-content,
+.resources-modern-shell,
+.tasks-modern-shell,
+.helper-shell,
+.profile-modern-shell,
+.my-resources-modern-shell,
+.my-tasks-modern-shell,
+.post-resource-shell,
+.post-task-shell,
+.edit-resource-shell,
+.transaction-history-shell,
+.connection-details-shell,
+.task-payment-shell {
+  padding-left: var(--app-side-space);
+  padding-right: var(--app-side-space);
+}
+
+/* Prevent children from creating horizontal overflow */
+.college-container *,
+.login-container *,
+.auth-shell *,
+.home-modern-content *,
+.resources-modern-shell *,
+.tasks-modern-shell *,
+.helper-shell *,
+.profile-modern-shell *,
+.my-resources-modern-shell *,
+.my-tasks-modern-shell *,
+.post-resource-shell *,
+.post-task-shell *,
+.edit-resource-shell *,
+.transaction-history-shell *,
+.connection-details-shell *,
+.task-payment-shell {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+/* Images never exceed their container */
+img,
+video,
+svg {
+  max-width: 100%;
+}
+
+/* Tablet */
+@media (max-width: 900px) {
+  :root {
+    --app-side-space: 20px;
+  }
+
+  .college-container,
+  .login-container,
+  .auth-shell,
+  .home-modern-content,
+  .resources-modern-shell,
+  .tasks-modern-shell,
+  .helper-shell,
+  .profile-modern-shell,
+  .my-resources-modern-shell,
+  .my-tasks-modern-shell,
+  .post-resource-shell,
+  .post-task-shell,
+  .edit-resource-shell,
+  .transaction-history-shell,
+  .connection-details-shell,
+  .task-payment-shell {
+    width: 100%;
+  }
+}
+
+/* Phone */
+@media (max-width: 600px) {
+  :root {
+    --app-side-space: var(--app-mobile-space);
+    --app-bottom-space: 100px;
+  }
+
+  .college-container,
+  .login-container,
+  .auth-shell,
+  .home-modern-content,
+  .resources-modern-shell,
+  .tasks-modern-shell,
+  .helper-shell,
+  .profile-modern-shell,
+  .my-resources-modern-shell,
+  .my-tasks-modern-shell,
+  .post-resource-shell,
+  .post-task-shell,
+  .edit-resource-shell,
+  .transaction-history-shell,
+  .connection-details-shell,
+  .task-payment-shell {
+    padding-left: var(--app-mobile-space);
+    padding-right: var(--app-mobile-space);
+  }
+}
+
+/* Small phones */
+@media (max-width: 380px) {
+  :root {
+    --app-side-space: 14px;
+  }
+
+  .college-container,
+  .login-container,
+  .auth-shell,
+  .home-modern-content,
+  .resources-modern-shell,
+  .tasks-modern-shell,
+  .helper-shell,
+  .profile-modern-shell,
+  .my-resources-modern-shell,
+  .my-tasks-modern-shell,
+  .post-resource-shell,
+  .post-task-shell,
+  .edit-resource-shell,
+  .transaction-history-shell,
+  .connection-details-shell,
+  .task-payment-shell {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}
+
+/* Content should remain visible above fixed bottom navigation */
+@media (max-width: 700px) {
+  .home-modern-page,
+  .resources-modern-page,
+  .tasks-modern-page,
+  .helper-page,
+  .profile-modern-page,
+  .my-resources-modern-page,
+  .my-tasks-modern-page,
+  .post-resource-modern-page,
+  .post-task-modern-page,
+  .edit-resource-page,
+  .transaction-history-page,
+  .connection-details-page,
+  .task-payment-page {
+    padding-bottom: var(--app-bottom-space);
+  }
+}
+
+/* =========================================
+   UNIVERSAL CAMPUSSHARE APP FRAME
+   ========================================= */
+
+.app-page-frame {
+  width: 100%;
+  max-width: 1180px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 0 24px 110px;
+  box-sizing: border-box;
+}
+
+.app-page-frame > * {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+@media (max-width: 900px) {
+  .app-page-frame {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}
+
+@media (max-width: 600px) {
+  .app-page-frame {
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-bottom: 100px;
+  }
+}
+
+@media (max-width: 380px) {
+  .app-page-frame {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}
+
+/* =========================================
+   CAMPUSSHARE — FLUID SCREEN SIZING
+   Desktop uses available screen width.
+   Mobile becomes fully fluid automatically.
+   ========================================= */
+
+.app-page-frame {
+  width: 100%;
+  max-width: none;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0 32px 110px;
+  box-sizing: border-box;
+}
+
+/* Keep actual content spacious on large screens */
+.app-page-frame > .college-container,
+.app-page-frame > .login-container,
+.app-page-frame > .auth-shell,
+.app-page-frame > .home-modern-content,
+.app-page-frame > .resources-modern-shell,
+.app-page-frame > .tasks-modern-shell,
+.app-page-frame > .helper-shell,
+.app-page-frame > .profile-modern-shell,
+.app-page-frame > .my-resources-modern-shell,
+.app-page-frame > .my-tasks-modern-shell,
+.app-page-frame > .post-resource-shell,
+.app-page-frame > .post-task-shell,
+.app-page-frame > .edit-resource-shell,
+.app-page-frame > .transaction-history-shell,
+.app-page-frame > .connection-details-shell,
+.app-page-frame > .task-payment-shell {
+  width: 100%;
+  max-width: none;
+}
+
+/* Large laptop / desktop */
+@media (min-width: 1200px) {
+  .app-page-frame {
+    padding-left: 48px;
+    padding-right: 48px;
+    padding-bottom: 110px;
+  }
+}
+
+/* Very large monitors */
+@media (min-width: 1600px) {
+  .app-page-frame {
+    padding-left: 64px;
+    padding-right: 64px;
+  }
+}
+
+/* Tablet */
+@media (max-width: 900px) {
+  .app-page-frame {
+    padding-left: 24px;
+    padding-right: 24px;
+    padding-bottom: 105px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .app-page-frame {
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-bottom: 100px;
+  }
+}
+
+/* Small mobile */
+@media (max-width: 380px) {
+  .app-page-frame {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+/* =========================================
+   ALL CAMPUSSHARE PAGES — SCREEN FIT
+   ========================================= */
+
+/* Large desktop */
+@media (min-width: 1200px) {
+  .app-page-frame {
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+
+  .home-modern-content,
+  .resources-modern-shell,
+  .tasks-modern-shell,
+  .helper-shell,
+  .profile-modern-shell,
+  .my-resources-modern-shell,
+  .my-tasks-modern-shell,
+  .post-resource-shell,
+  .post-task-shell,
+  .edit-resource-shell,
+  .transaction-history-shell,
+  .connection-details-shell,
+  .task-payment-shell {
+    width: 100%;
+  }
+}
+
+/* Laptop */
+@media (min-width: 901px) and (max-width: 1199px) {
+  .app-page-frame {
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+
+  .home-modern-content,
+  .resources-modern-shell,
+  .tasks-modern-shell,
+  .helper-shell,
+  .profile-modern-shell,
+  .my-resources-modern-shell,
+  .my-tasks-modern-shell,
+  .post-resource-shell,
+  .post-task-shell,
+  .edit-resource-shell,
+  .transaction-history-shell,
+  .connection-details-shell,
+  .task-payment-shell {
+    width: 100%;
+  }
+}
+
+/* Tablet */
+@media (min-width: 601px) and (max-width: 900px) {
+  .app-page-frame {
+    padding-left: 22px;
+    padding-right: 22px;
+    padding-bottom: 105px;
+  }
+
+  .home-modern-content,
+  .resources-modern-shell,
+  .tasks-modern-shell,
+  .helper-shell,
+  .profile-modern-shell,
+  .my-resources-modern-shell,
+  .my-tasks-modern-shell,
+  .post-resource-shell,
+  .post-task-shell,
+  .edit-resource-shell,
+  .transaction-history-shell,
+  .connection-details-shell,
+  .task-payment-shell {
+    width: 100%;
+  }
+}
+
+/* Phone */
+@media (max-width: 600px) {
+  .app-page-frame {
+    width: 100%;
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-bottom: 100px;
+  }
+
+  .home-modern-content,
+  .resources-modern-shell,
+  .tasks-modern-shell,
+  .helper-shell,
+  .profile-modern-shell,
+  .my-resources-modern-shell,
+  .my-tasks-modern-shell,
+  .post-resource-shell,
+  .post-task-shell,
+  .edit-resource-shell,
+  .transaction-history-shell,
+  .connection-details-shell,
+  .task-payment-shell {
+    width: 100%;
+  }
+}
+
+/* Small phone */
+@media (max-width: 380px) {
+  .app-page-frame {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+/* Never let grids create horizontal overflow */
+.app-page-frame .grid,
+.app-page-frame [class*="grid"] {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Long text must wrap instead of expanding the page */
+.app-page-frame h1,
+.app-page-frame h2,
+.app-page-frame h3,
+.app-page-frame p,
+.app-page-frame span {
+  overflow-wrap: anywhere;
+}
+
+/* Flexible media */
+.app-page-frame img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Form controls stay inside the screen */
+.app-page-frame input,
+.app-page-frame textarea,
+.app-page-frame select,
+.app-page-frame button {
+  max-width: 100%;
+  box-sizing: border-box;
+}

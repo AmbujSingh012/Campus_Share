@@ -568,11 +568,46 @@ router.get("/", async (req, res) => {
         task_a.id AS task_acceptance_id,
         task_a.helper_id AS task_helper_id,
         task_a.status AS task_acceptance_status,
-        task_a.payment_status AS task_payment_status,
-        task_a.payment_transaction_id AS task_transaction_id,
-        task_a.payment_network AS task_payment_network,
-        task_a.payment_amount AS task_payment_amount,
-        task_a.paid_at AS task_paid_at
+
+        (
+          SELECT p.status
+          FROM payments p
+          WHERE p.task_id = t.id
+          ORDER BY p.id DESC
+          LIMIT 1
+        ) AS task_payment_status,
+
+        (
+          SELECT p.transaction_id
+          FROM payments p
+          WHERE p.task_id = t.id
+          ORDER BY p.id DESC
+          LIMIT 1
+        ) AS task_transaction_id,
+
+        (
+          SELECT p.payment_provider
+          FROM payments p
+          WHERE p.task_id = t.id
+          ORDER BY p.id DESC
+          LIMIT 1
+        ) AS task_payment_network,
+
+        (
+          SELECT p.amount
+          FROM payments p
+          WHERE p.task_id = t.id
+          ORDER BY p.id DESC
+          LIMIT 1
+        ) AS task_payment_amount,
+
+        (
+          SELECT p.paid_at
+          FROM payments p
+          WHERE p.task_id = t.id
+          ORDER BY p.id DESC
+          LIMIT 1
+        ) AS task_paid_at
 
       FROM tasks t
 
@@ -626,48 +661,88 @@ router.get(
   "/transactions/history",
   async (req, res) => {
     try {
-      const userId =
-        req.user.userId;
+      const userId = req.user.userId;
 
       console.log(
         "TRANSACTION HISTORY USER:",
         userId
       );
 
-      const [transactions] =
-        await db.execute(
-          `
+      const [transactions] = await db.execute(
+        `
+        SELECT *
+        FROM (
           SELECT
-            a.id,
-            a.task_id,
+            CONCAT('task-', p.id) AS id,
+            'task' AS transaction_type,
+            p.task_id,
+            NULL AS resource_id,
             a.helper_id,
-            a.status,
+            p.payer_id,
+            p.receiver_id,
+            t.status AS status,
             a.accepted_at,
-            a.payment_status,
-            a.payment_transaction_id,
-            a.payment_network,
-            a.payment_amount,
-            a.paid_at,
-
-            t.title AS task_title,
+            p.status AS payment_status,
+            p.transaction_id AS payment_transaction_id,
+            p.payment_provider AS payment_network,
+            p.amount AS payment_amount,
             t.reward,
-
-            u.name AS task_owner
-
-          FROM acceptances a
-
+            p.paid_at,
+            t.title AS task_title,
+            owner.name AS task_owner
+          FROM payments p
           JOIN tasks t
+            ON p.task_id = t.id
+          JOIN users owner
+            ON t.user_id = owner.id
+          LEFT JOIN acceptances a
             ON a.task_id = t.id
+           AND a.status = 'accepted'
+          WHERE p.task_id IS NOT NULL
+            AND (
+              p.payer_id = ?
+              OR p.receiver_id = ?
+            )
 
-          JOIN users u
-            ON t.user_id = u.id
+          UNION ALL
 
-          WHERE a.helper_id = ?
-
-          ORDER BY a.accepted_at DESC
-          `,
-          [userId]
-        );
+          SELECT
+            CONCAT('resource-', p.id) AS id,
+            'resource' AS transaction_type,
+            NULL AS task_id,
+            p.resource_id,
+            r.borrowed_by AS helper_id,
+            p.payer_id,
+            p.receiver_id,
+            CASE
+              WHEN LOWER(COALESCE(r.availability, '')) = 'borrowed'
+                THEN 'borrowed'
+              ELSE r.availability
+            END AS status,
+            r.borrowed_at AS accepted_at,
+            p.status AS payment_status,
+            p.transaction_id AS payment_transaction_id,
+            p.payment_provider AS payment_network,
+            p.amount AS payment_amount,
+            p.amount AS reward,
+            p.paid_at,
+            r.title AS task_title,
+            owner.name AS task_owner
+          FROM payments p
+          JOIN resources r
+            ON p.resource_id = r.id
+          JOIN users owner
+            ON r.user_id = owner.id
+          WHERE p.resource_id IS NOT NULL
+            AND (
+              p.payer_id = ?
+              OR p.receiver_id = ?
+            )
+        ) AS transaction_history
+        ORDER BY COALESCE(paid_at, accepted_at) DESC
+        `,
+        [userId, userId, userId, userId]
+      );
 
       console.log(
         "TRANSACTIONS FOUND:",
@@ -733,23 +808,43 @@ router.get(
             owner.id AS owner_id,
             owner.name AS owner_name,
             owner.email AS owner_email,
-            owner.wallet_address
-              AS owner_wallet_address,
+owner.mobile AS owner_mobile,
+owner.wallet_address
+  AS owner_wallet_address,
 
-            helper.id AS helper_id,
-            helper.name AS helper_name,
-            helper.email AS helper_email,
-            helper.wallet_address
-              AS helper_wallet_address,
+helper.id AS helper_id,
+helper.name AS helper_name,
+helper.email AS helper_email,
+helper.mobile AS helper_mobile,
+helper.wallet_address
+  AS helper_wallet_address,
 
             a.id AS acceptance_id,
             a.status AS acceptance_status,
             a.accepted_at,
-            a.payment_status,
-            a.payment_transaction_id,
-            a.payment_network,
-            a.payment_amount,
-            a.paid_at
+
+            p.id AS payment_id,
+            p.status AS payment_status,
+            p.payment_method,
+            p.payment_provider,
+            p.transaction_id AS payment_transaction_id,
+            p.razorpay_order_id,
+            p.razorpay_payment_id,
+            p.upi_id AS payment_upi_id,
+            p.amount AS payment_amount,
+            p.paid_at AS payment_paid_at,
+
+            payer.id AS payer_id,
+            payer.name AS payer_name,
+            payer.email AS payer_email,
+            payer.mobile AS payer_mobile,
+            payer.upi_id AS payer_upi_id,
+
+            receiver.id AS receiver_id,
+            receiver.name AS receiver_name,
+            receiver.email AS receiver_email,
+            receiver.mobile AS receiver_mobile,
+            receiver.upi_id AS receiver_upi_id
 
           FROM tasks t
 
@@ -761,6 +856,21 @@ router.get(
 
           JOIN users helper
             ON helper.id = a.helper_id
+
+          LEFT JOIN payments p
+            ON p.task_id = t.id
+            AND p.id = (
+              SELECT MAX(p2.id)
+              FROM payments p2
+              WHERE p2.task_id = t.id
+                AND p2.status IN ('pending', 'paid')
+            )
+
+          LEFT JOIN users payer
+            ON payer.id = p.payer_id
+
+          LEFT JOIN users receiver
+            ON receiver.id = p.receiver_id
 
           WHERE t.id = ?
             AND (
@@ -807,20 +917,22 @@ router.get(
         },
 
         owner: {
-          id: data.owner_id,
-          name: data.owner_name,
-          email: data.owner_email,
-          wallet_address:
-            data.owner_wallet_address,
-        },
+  id: data.owner_id,
+  name: data.owner_name,
+  email: data.owner_email,
+  mobile: data.owner_mobile || null,
+  wallet_address:
+    data.owner_wallet_address,
+},
 
         helper: {
-          id: data.helper_id,
-          name: data.helper_name,
-          email: data.helper_email,
-          wallet_address:
-            data.helper_wallet_address,
-        },
+  id: data.helper_id,
+  name: data.helper_name,
+  email: data.helper_email,
+  mobile: data.helper_mobile || null,
+  wallet_address:
+    data.helper_wallet_address,
+},
 
         acceptance: {
           id: data.acceptance_id,
@@ -831,16 +943,42 @@ router.get(
         },
 
         payment: {
+          id: data.payment_id || null,
           status:
-            data.payment_status,
+            data.payment_status || "pending",
+          payment_method:
+            data.payment_method || null,
+          payment_provider:
+            data.payment_provider || null,
           transaction_id:
-            data.payment_transaction_id,
-          network:
-            data.payment_network,
+            data.payment_transaction_id || null,
+          razorpay_order_id:
+            data.razorpay_order_id || null,
+          razorpay_payment_id:
+            data.razorpay_payment_id || null,
+          upi_id:
+            data.payment_upi_id || null,
           amount:
-            data.payment_amount,
+            data.payment_amount !== null &&
+            data.payment_amount !== undefined
+              ? Number(data.payment_amount)
+              : null,
           paid_at:
-            data.paid_at,
+            data.payment_paid_at || null,
+          payer: {
+            id: data.payer_id || null,
+            name: data.payer_name || null,
+            email: data.payer_email || null,
+            mobile: data.payer_mobile || null,
+            upi_id: data.payer_upi_id || null,
+          },
+          receiver: {
+            id: data.receiver_id || null,
+            name: data.receiver_name || null,
+            email: data.receiver_email || null,
+            mobile: data.receiver_mobile || null,
+            upi_id: data.receiver_upi_id || null,
+          },
         },
       });
     } catch (error) {
@@ -857,6 +995,81 @@ router.get(
     }
   }
 );
+
+// =====================================================
+// MY TASKS
+// =====================================================
+
+router.get(
+  "/my",
+  async (req, res) => {
+    try {
+      const userId = req.user.userId;
+
+      const [tasks] = await db.execute(
+        `
+        SELECT
+          t.id,
+          t.user_id,
+          t.title,
+          t.description,
+          t.category,
+          t.location,
+          t.meeting_time,
+          t.reward,
+          t.status,
+          t.deadline,
+          t.college_id,
+          t.created_at,
+          u.name AS postedBy,
+          a.id AS acceptance_id,
+          a.helper_id,
+          a.status AS acceptance_status,
+          a.payment_status,
+          a.payment_transaction_id,
+          a.payment_network,
+          a.payment_amount,
+          a.paid_at,
+          helper.name AS helper_name
+        FROM tasks t
+        JOIN users u
+          ON t.user_id = u.id
+        LEFT JOIN acceptances a
+          ON a.id = (
+            SELECT a2.id
+            FROM acceptances a2
+            WHERE a2.task_id = t.id
+            ORDER BY
+              CASE
+                WHEN a2.status = 'accepted' THEN 0
+                ELSE 1
+              END,
+              a2.id DESC
+            LIMIT 1
+          )
+        LEFT JOIN users helper
+          ON helper.id = a.helper_id
+        WHERE t.user_id = ?
+        ORDER BY t.created_at DESC
+        `,
+        [userId]
+      );
+
+      return res.json({
+        success: true,
+        tasks,
+      });
+    } catch (error) {
+      console.error("Get my tasks error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Server error while fetching your tasks",
+      });
+    }
+  }
+);
+
 
 // =====================================================
 // GET TASK BY ID
@@ -1468,6 +1681,107 @@ router.put(
         success: false,
         message:
           "Server error while updating task",
+      });
+    }
+  }
+);
+
+// =====================================================
+// COMPLETE TASK
+// Accepted helper marks the task as completed
+// =====================================================
+
+router.put(
+  "/:id/complete",
+  async (req, res) => {
+    try {
+      const taskId = Number(req.params.id);
+
+      if (!Number.isInteger(taskId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid task ID",
+        });
+      }
+
+      const helperId = req.user.userId;
+
+      // Find the task and its accepted helper
+      const [rows] = await db.execute(
+        `
+        SELECT
+          t.id,
+          t.user_id AS owner_id,
+          t.status AS task_status,
+          a.helper_id,
+          a.status AS acceptance_status
+        FROM tasks t
+        JOIN acceptances a
+          ON a.task_id = t.id
+        WHERE t.id = ?
+          AND a.helper_id = ?
+          AND a.status = 'accepted'
+        LIMIT 1
+        `,
+        [taskId, helperId]
+      );
+
+      if (rows.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "You are not the accepted helper for this task",
+        });
+      }
+
+      const task = rows[0];
+
+      if (task.task_status !== "accepted") {
+        return res.status(400).json({
+          success: false,
+          message:
+            `Task cannot be completed because its current status is '${task.task_status}'`,
+        });
+      }
+
+      // Mark task as completed
+      const [result] = await db.execute(
+        `
+        UPDATE tasks
+        SET status = 'completed'
+        WHERE id = ?
+          AND status = 'accepted'
+        `,
+        [taskId]
+      );
+
+      if (result.affectedRows === 0) {
+        return res.status(409).json({
+          success: false,
+          message: "Task was already completed or changed",
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Task completed successfully",
+        task: {
+          id: taskId,
+          status: "completed",
+          owner_id: task.owner_id,
+          helper_id: helperId,
+        },
+      });
+    } catch (error) {
+      console.error(
+        "Complete task error:",
+        error
+      );
+
+      res.status(500).json({
+        success: false,
+        message:
+          "Server error while completing task",
       });
     }
   }

@@ -21,6 +21,8 @@ const taskRoutes = require("./routes/taskRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const helperRoutes = require("./routes/helperRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
+const collegeRoutes = require("./routes/collegeRoutes");
+const ratingRoutes = require("./routes/ratingRoutes");
 
 // =====================================================
 // APP CONFIGURATION
@@ -354,6 +356,15 @@ app.use(
 app.use(
   "/api/payments",
   paymentRoutes
+);
+
+app.use(
+  "/api/colleges",
+  collegeRoutes
+);
+app.use(
+  "/api/ratings",
+  ratingRoutes
 );
 
 // =====================================================

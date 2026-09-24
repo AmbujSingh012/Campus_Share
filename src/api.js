@@ -1,4 +1,8 @@
-const API_BASE_URL = "http://localhost:3000";
+const API_BASE_URL =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1"
+    ? "http://localhost:3000"
+    : "http://172.16.25.209:3000";
 
 // =====================================================
 // GET JWT TOKEN / AUTH HEADERS
@@ -277,3 +281,134 @@ export async function getTaskConnection(taskId) {
 
   return data;
 }
+
+// =====================================================
+// CREATE RAZORPAY ORDER
+// =====================================================
+
+export async function createRazorpayOrder({
+  taskId = null,
+  resourceId = null,
+}) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/payments/create-order`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        task_id: taskId,
+        resource_id: resourceId,
+      }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message ||
+        "Failed to create Razorpay order"
+    );
+  }
+
+  return data;
+}
+
+// =====================================================
+// VERIFY RAZORPAY PAYMENT
+// =====================================================
+
+export async function verifyRazorpayPayment({
+  razorpay_order_id,
+  razorpay_payment_id,
+  razorpay_signature,
+}) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/payments/verify-razorpay`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        razorpay_order_id,
+        razorpay_payment_id,
+        razorpay_signature,
+      }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message ||
+        "Failed to verify Razorpay payment"
+    );
+  }
+
+  return data;
+}
+
+// =====================================================
+// GET PAYMENT RECEIPT
+// =====================================================
+
+export async function getMyPaymentReceipts() {
+  const response = await fetch(
+    `${API_BASE_URL}/api/payments/my-receipts`,
+    {
+      headers: getAuthHeaders(),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message ||
+        "Failed to fetch payment receipts"
+    );
+  }
+
+  return data;
+}
+
+export async function getPaymentReceipt(paymentId) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/payments/receipt/${paymentId}`,
+    {
+      headers: getAuthHeaders(),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message ||
+        "Failed to fetch payment receipt"
+    );
+  }
+
+  return data;
+}
+export async function cancelRazorpayPayment(paymentId) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/payments/cancel/${paymentId}`,
+    {
+      method: "PUT",
+      headers: getAuthHeaders(),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || "Failed to cancel payment"
+    );
+  }
+
+  return data;
+}
+
+export default API_BASE_URL;

@@ -1,3 +1,4 @@
+
 const express = require("express");
 
 const db = require("../db");
@@ -22,9 +23,11 @@ router.get("/:id", async (req, res) => {
         name,
         email,
         mobile,
+        upi_id,
         location,
         availability,
         created_at,
+
         COALESCE(
           (
             SELECT ROUND(AVG(r.rating), 1)
@@ -32,7 +35,14 @@ router.get("/:id", async (req, res) => {
             WHERE r.rated_user_id = users.id
           ),
           0
-        ) AS averageRating
+        ) AS averageRating,
+
+        (
+          SELECT COUNT(*)
+          FROM ratings r
+          WHERE r.rated_user_id = users.id
+        ) AS ratingCount
+
        FROM users
        WHERE id = ?`,
       [userId]
@@ -66,14 +76,20 @@ router.get("/:id", async (req, res) => {
 
     res.json({
       success: true,
+
       profile: {
         id: user.id,
         name: user.name,
         email: user.email,
         mobile: user.mobile,
+        upi_id: user.upi_id,
         location: user.location,
         availability: user.availability,
+
+        // Real rating information
         averageRating: Number(user.averageRating || 0),
+        ratingCount: Number(user.ratingCount || 0),
+
         postedTasks: Number(taskCount[0].count),
         postedResources: Number(resourceCount[0].count),
         acceptedTasks: Number(acceptedTaskCount[0].count),

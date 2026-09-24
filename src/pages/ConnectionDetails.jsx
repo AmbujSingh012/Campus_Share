@@ -1,13 +1,33 @@
-
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { getTaskConnection } from "../api";
-
 import {
-  connectTaskPaymentWallet,
-  payHelper,
-} from "../utils/taskPayment";
+  ArrowLeft,
+  CalendarClock,
+  CheckCircle2,
+  CircleAlert,
+  Clock3,
+  Coins,
+  Loader2,
+  MapPin,
+  Network,
+  Phone,
+  ReceiptText,
+  ShieldCheck,
+  Sparkles,
+  UserRound,
+  WalletCards,
+} from "lucide-react";
+
+import API_BASE_URL, {
+  getTaskConnection,
+  createRazorpayOrder,
+  verifyRazorpayPayment,
+  getPaymentReceipt,
+} from "../api";
+
+import BottomNavigation from "../components/BottomNavigation";
+import "./ConnectionDetails.css";
 
 function ConnectionDetails() {
   const location = useLocation();
@@ -23,7 +43,6 @@ function ConnectionDetails() {
     location.state?.taskId ||
     location.state?.task?.id;
 
-  // Load connection details
   useEffect(() => {
     const loadConnection = async () => {
       if (!taskId) {
@@ -56,44 +75,21 @@ function ConnectionDetails() {
     loadConnection();
   }, [taskId]);
 
-  // Pay helper
   const handlePayHelper = async () => {
     if (!data?.task) {
       return;
     }
 
-    // Get currently logged-in user
     const savedUser = JSON.parse(
       localStorage.getItem("user") || "null"
     );
 
     const currentUserId = savedUser?.id;
-
-    // Task owner
     const ownerId = data.owner?.id;
 
-    // Only task owner can pay
-    if (
-      Number(currentUserId) !== Number(ownerId)
-    ) {
+    if (Number(currentUserId) !== Number(ownerId)) {
       setPaymentError(
         "Only the task owner can pay the helper."
-      );
-      return;
-    }
-
-    // Check helper wallet
-    if (!data.helper?.wallet_address) {
-      setPaymentError(
-        "Helper wallet is not connected."
-      );
-      return;
-    }
-
-    // Check owner wallet
-    if (!data.owner?.wallet_address) {
-      setPaymentError(
-        "Your wallet is not connected."
       );
       return;
     }
@@ -107,239 +103,315 @@ function ConnectionDetails() {
       return;
     }
 
+    if (!window.Razorpay) {
+      setPaymentError(
+        "Razorpay checkout is not loaded. Please refresh the page and try again."
+      );
+      return;
+    }
+
     try {
       setPaying(true);
       setPaymentError("");
 
-      console.log("Starting helper payment...");
-      console.log(
-        "Owner:",
-        data.owner.wallet_address
-      );
-      console.log(
-        "Helper:",
-        data.helper.wallet_address
-      );
+      console.log("Creating Razorpay task payment order...");
+      console.log("Task ID:", taskId);
       console.log("Reward:", reward);
 
-      // Connect task owner's Pera wallet
-      await connectTaskPaymentWallet();
-
-      // Send USDC payment to helper
-      const paymentResult = await payHelper({
-        ownerAddress:
-          data.owner.wallet_address,
-        helperAddress:
-          data.helper.wallet_address,
-        reward,
+      const orderData = await createRazorpayOrder({
+        taskId,
       });
 
-      console.log(
-        "Payment result:",
-        paymentResult
-      );
-
-      // payHelper() may return either:
-      // 1. A transaction ID string
-      // 2. An object containing transactionId
-      const transactionId =
-        typeof paymentResult === "string"
-          ? paymentResult
-          : paymentResult?.transactionId;
-
-      console.log(
-        "Extracted transaction ID:",
-        transactionId
-      );
-
-      if (!transactionId) {
+      if (!orderData?.success || !orderData?.order?.id) {
         throw new Error(
-          "Transaction ID was not returned."
+          orderData?.message ||
+            "Unable to create Razorpay order."
         );
       }
 
-      // Get JWT token
-      const token =
-        localStorage.getItem("token");
+      const options = {
+        key: orderData.razorpayKeyId,
+        amount: orderData.order.amount,
+        currency: orderData.order.currency || "INR",
+        name: "CampusShare",
+        description:
+          data.task.title || "Task helper payment",
+        order_id: orderData.order.id,
 
-      if (!token) {
-        throw new Error(
-          "Login session expired. Please log in again."
-        );
-      }
+        prefill: {
+          name: data.owner?.name || savedUser?.name || "",
+          email: data.owner?.email || savedUser?.email || "",
+          contact: data.owner?.mobile || savedUser?.mobile || "",
+        },
 
-      console.log(
-        "Sending payment verification..."
-      );
+        notes: {
+          task_id: String(taskId),
+          helper_id: String(data.helper?.id || ""),
+        },
 
-      console.log("Task ID:", taskId);
-      console.log(
-        "Transaction ID:",
-        transactionId
-      );
-      console.log(
-        "Token exists:",
-        !!token
-      );
+        theme: {
+          color: "#2563EB",
+        },
 
-      // Tell backend to verify the transaction
-      const response = await fetch(
-        `http://localhost:3000/api/tasks/${taskId}/pay`,
-        {
-          method: "POST",
+        handler: async function (response) {
+          try {
+            console.log(
+              "Razorpay payment response:",
+              response
+            );
 
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            const verification =
+              await verifyRazorpayPayment({
+                razorpay_order_id:
+                  response.razorpay_order_id,
+                razorpay_payment_id:
+                  response.razorpay_payment_id,
+                razorpay_signature:
+                  response.razorpay_signature,
+              });
+
+            console.log(
+              "Razorpay verification:",
+              verification
+            );
+
+            const paymentId =
+              verification?.payment?.id ||
+              verification?.payment_id ||
+              orderData?.payment?.id;
+
+            if (!paymentId) {
+              throw new Error(
+                "Payment succeeded, but receipt information was not returned."
+              );
+            }
+
+            const receiptData =
+              await getPaymentReceipt(paymentId);
+
+            console.log(
+              "Task payment receipt:",
+              receiptData
+            );
+
+            if (
+              !receiptData?.success ||
+              !receiptData?.receipt
+            ) {
+              throw new Error(
+                receiptData?.message ||
+                  "Payment succeeded, but the receipt could not be loaded."
+              );
+            }
+
+            const receipt =
+              receiptData.receipt;
+
+            setData((previous) => ({
+              ...previous,
+              payment: {
+                ...(previous.payment || {}),
+                status: "paid",
+                transaction_id:
+                  receipt.transaction_id ||
+                  response.razorpay_payment_id,
+                network:
+                  receipt.payment_provider ||
+                  "Razorpay",
+                amount: Number(
+                  receipt.amount || reward
+                ),
+                paid_at:
+                  receipt.paid_at ||
+                  new Date().toISOString(),
+                payment_method:
+                  receipt.payment_method ||
+                  null,
+                payment_provider:
+                  receipt.payment_provider ||
+                  "razorpay",
+                razorpay_order_id:
+                  receipt.razorpay_order_id ||
+                  response.razorpay_order_id,
+                razorpay_payment_id:
+                  receipt.razorpay_payment_id ||
+                  response.razorpay_payment_id,
+                upi_id:
+                  receipt.payment_upi_id ||
+                  receipt.payer?.upi_id ||
+                  null,
+              },
+            }));
+
+            alert(
+              "Payment successful! The helper has been paid."
+            );
+          } catch (err) {
+            console.error(
+              "Task Razorpay verification error:",
+              err
+            );
+
+            setPaymentError(
+              err?.message ||
+                "Payment verification failed. Please check your payment status."
+            );
+          } finally {
+            setPaying(false);
+          }
+        },
+
+        modal: {
+          ondismiss: function () {
+            setPaying(false);
+            setPaymentError(
+              "Payment was cancelled."
+            );
           },
+        },
+      };
 
-          body: JSON.stringify({
-            transaction_id: transactionId,
-          }),
+      const razorpay = new window.Razorpay(
+        options
+      );
+
+      razorpay.on(
+        "payment.failed",
+        function (response) {
+          console.error(
+            "Razorpay payment failed:",
+            response
+          );
+
+          setPaymentError(
+            response?.error?.description ||
+              "Payment failed. Please try again."
+          );
+
+          setPaying(false);
         }
       );
 
-      const result = await response.json();
-
-      console.log(
-        "Backend payment verification:",
-        result
-      );
-
-      if (!response.ok) {
-        throw new Error(
-          result?.message ||
-            result?.error ||
-            "Backend payment verification failed."
-        );
-      }
-
-      console.log(
-        "Payment verified successfully:",
-        result
-      );
-
-      // Update UI immediately
-      setData((previous) => ({
-        ...previous,
-
-        payment: {
-          ...(previous.payment || {}),
-
-          status: "paid",
-
-          transaction_id: transactionId,
-
-          network: "Algorand Testnet",
-
-          amount: reward,
-
-          paid_at:
-            new Date().toISOString(),
-        },
-      }));
-
-      alert(
-        "Payment successful! The helper has been paid."
-      );
+      razorpay.open();
     } catch (err) {
       console.error(
-        "Helper payment error:",
+        "Task Razorpay payment error:",
         err
       );
 
       setPaymentError(
         err?.message ||
-          "Payment failed. Please try again."
+          "Unable to start payment. Please try again."
       );
-    } finally {
+
       setPaying(false);
     }
   };
 
-  // Loading
   if (loading) {
     return (
-      <div
-        style={{
-          padding: "24px",
-          textAlign: "center",
-        }}
-      >
-        Loading connection details...
+      <div className="connection-details-page app-page-frame">
+        <div className="connection-details-state">
+          <div className="connection-details-state-icon">
+            <Loader2
+              size={28}
+              className="connection-details-spinner"
+            />
+          </div>
+
+          <h2>Loading connection</h2>
+
+          <p>
+            We're getting the task, helper and
+            payment details ready.
+          </p>
+        </div>
+
+        <BottomNavigation active="tasks" />
       </div>
     );
   }
 
-  // Error
   if (error) {
     return (
-      <div
-        style={{
-          padding: "24px",
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          style={{
-            marginBottom: "20px",
-            padding: "8px 14px",
-            borderRadius: "8px",
-            border: "1px solid #d1d5db",
-            background: "#fff",
-            cursor: "pointer",
-          }}
-        >
-          ← Back
-        </button>
+      <div className="connection-details-page">
+        <div className="connection-details-shell">
+          <header className="connection-details-topbar">
+            <button
+              type="button"
+              className="connection-details-back"
+              onClick={() => navigate(-1)}
+              aria-label="Go back"
+            >
+              <ArrowLeft size={19} />
+            </button>
 
-        <div
-          style={{
-            padding: "16px",
-            borderRadius: "10px",
-            background: "#fee2e2",
-            color: "#991b1b",
-          }}
-        >
-          {error}
+            <div className="connection-details-topbar-copy">
+              <span>CampusShare</span>
+              <strong>Connection Details</strong>
+            </div>
+          </header>
+
+          <div className="connection-details-state">
+            <div className="connection-details-state-icon error">
+              <CircleAlert size={28} />
+            </div>
+
+            <h2>Couldn't load connection</h2>
+
+            <p>{error}</p>
+
+            <button
+              type="button"
+              className="connection-details-action"
+              onClick={() => navigate(-1)}
+            >
+              <ArrowLeft size={16} />
+              Go Back
+            </button>
+          </div>
         </div>
+
+        <BottomNavigation active="tasks" />
       </div>
     );
   }
 
-  // No data
   if (!data) {
     return (
-      <div
-        style={{
-          padding: "24px",
-          textAlign: "center",
-        }}
-      >
-        No connection details found.
+      <div className="connection-details-page">
+        <div className="connection-details-state">
+          <div className="connection-details-state-icon">
+            <CircleAlert size={28} />
+          </div>
+
+          <h2>No connection found</h2>
+
+          <p>
+            We couldn't find connection details for
+            this task.
+          </p>
+        </div>
+
+        <BottomNavigation active="tasks" />
       </div>
     );
   }
 
-  // Current user
   const savedUser = JSON.parse(
     localStorage.getItem("user") || "null"
   );
 
   const currentUserId = savedUser?.id;
 
-  // Only task creator is owner
   const isOwner =
     Number(currentUserId) ===
     Number(data.owner?.id);
 
-  // Accepted helper
   const isHelper =
     Number(currentUserId) ===
     Number(data.helper?.id);
 
-  // Payment status
   const paymentStatus =
     data.payment?.status || "pending";
 
@@ -350,385 +422,479 @@ function ConnectionDetails() {
     data.task?.reward || 0
   );
 
-  console.log(
-    "Current user ID:",
-    currentUserId
-  );
+  const ownerName =
+    data.owner?.name || "Task Owner";
 
-  console.log(
-    "Task owner ID:",
-    data.owner?.id
-  );
+  const helperName =
+    data.helper?.name || "Accepted Helper";
 
-  console.log(
-    "Accepted helper ID:",
-    data.helper?.id
-  );
+  const ownerInitial =
+    ownerName.charAt(0).toUpperCase();
 
-  console.log(
-    "Is task owner:",
-    isOwner
-  );
+  const helperInitial =
+    helperName.charAt(0).toUpperCase();
 
-  console.log(
-    "Is accepted helper:",
-    isHelper
-  );
+  const taskStatus =
+    data.task?.status || "N/A";
 
   return (
-    <div
-      style={{
-        padding: "20px",
-        maxWidth: "600px",
-        margin: "0 auto",
-        paddingBottom: "100px",
-      }}
-    >
-      {/* Back button */}
-
-      <button
-        type="button"
-        onClick={() => navigate(-1)}
-        style={{
-          marginBottom: "20px",
-          padding: "8px 14px",
-          borderRadius: "8px",
-          border: "1px solid #d1d5db",
-          background: "#fff",
-          cursor: "pointer",
-        }}
-      >
-        ← Back
-      </button>
-
-      {/* Page title */}
-
-      <h1
-        style={{
-          marginBottom: "20px",
-        }}
-      >
-        Connection Details
-      </h1>
-
-      {/* Task Details */}
-
-      <div
-        style={{
-          border: "1px solid #e5e7eb",
-          borderRadius: "12px",
-          padding: "18px",
-          marginBottom: "16px",
-          background: "#fff",
-        }}
-      >
-        <h2
-          style={{
-            marginTop: 0,
-            marginBottom: "14px",
-          }}
-        >
-          Task Details
-        </h2>
-
-        <p>
-          <strong>Title:</strong>{" "}
-          {data.task?.title || "N/A"}
-        </p>
-
-        <p>
-          <strong>Description:</strong>{" "}
-          {data.task?.description || "N/A"}
-        </p>
-
-        <p>
-          <strong>Category:</strong>{" "}
-          {data.task?.category || "N/A"}
-        </p>
-
-        <p>
-          <strong>Reward:</strong>{" "}
-          {reward.toFixed(2)} USDC
-        </p>
-
-        <p>
-          <strong>Deadline:</strong>{" "}
-          {data.task?.deadline
-            ? new Date(
-                data.task.deadline
-              ).toLocaleString()
-            : "N/A"}
-        </p>
-
-        <p>
-          <strong>Status:</strong>{" "}
-          {data.task?.status || "N/A"}
-        </p>
-      </div>
-
-      {/* Meeting Details */}
-
-      <div
-        style={{
-          border: "1px solid #e5e7eb",
-          borderRadius: "12px",
-          padding: "18px",
-          marginBottom: "16px",
-          background: "#fff",
-        }}
-      >
-        <h2
-          style={{
-            marginTop: 0,
-            marginBottom: "14px",
-          }}
-        >
-          Meeting Details
-        </h2>
-
-        <p>
-          <strong>Location:</strong>{" "}
-          {data.task?.location ||
-            "Not specified"}
-        </p>
-
-        <p>
-          <strong>Meeting Time:</strong>{" "}
-          {data.task?.meeting_time
-            ? new Date(
-                data.task.meeting_time
-              ).toLocaleString()
-            : "Not specified"}
-        </p>
-      </div>
-
-      {/* Task Owner */}
-
-      <div
-        style={{
-          border: "1px solid #e5e7eb",
-          borderRadius: "12px",
-          padding: "18px",
-          marginBottom: "16px",
-          background: "#fff",
-        }}
-      >
-        <h2
-          style={{
-            marginTop: 0,
-            marginBottom: "14px",
-          }}
-        >
-          Task Owner
-        </h2>
-
-        <p>
-          <strong>Name:</strong>{" "}
-          {data.owner?.name || "N/A"}
-        </p>
-
-        <p>
-          <strong>Email:</strong>{" "}
-          {data.owner?.email || "N/A"}
-        </p>
-
-        <p
-          style={{
-            wordBreak: "break-all",
-          }}
-        >
-          <strong>Wallet:</strong>{" "}
-          {data.owner?.wallet_address ||
-            "Not connected"}
-        </p>
-      </div>
-
-      {/* Accepted Helper */}
-
-      <div
-        style={{
-          border: "1px solid #e5e7eb",
-          borderRadius: "12px",
-          padding: "18px",
-          marginBottom: "16px",
-          background: "#fff",
-        }}
-      >
-        <h2
-          style={{
-            marginTop: 0,
-            marginBottom: "14px",
-          }}
-        >
-          Accepted By
-        </h2>
-
-        <p>
-          <strong>Name:</strong>{" "}
-          {data.helper?.name || "N/A"}
-        </p>
-
-        <p>
-          <strong>Email:</strong>{" "}
-          {data.helper?.email || "N/A"}
-        </p>
-
-        <p
-          style={{
-            wordBreak: "break-all",
-          }}
-        >
-          <strong>Wallet:</strong>{" "}
-          {data.helper?.wallet_address ||
-            "Not connected"}
-        </p>
-      </div>
-
-      {/* Payment Details */}
-
-      <div
-        style={{
-          border: "1px solid #e5e7eb",
-          borderRadius: "12px",
-          padding: "18px",
-          marginBottom: "16px",
-          background: "#fff",
-        }}
-      >
-        <h2
-          style={{
-            marginTop: 0,
-            marginBottom: "14px",
-          }}
-        >
-          Payment Details
-        </h2>
-
-        <p>
-          <strong>Status:</strong>{" "}
-          {isPaid
-            ? "Payment Completed"
-            : "Payment Pending"}
-        </p>
-
-        <p>
-          <strong>Amount:</strong>{" "}
-          {reward.toFixed(2)} USDC
-        </p>
-
-        <p>
-          <strong>Network:</strong>{" "}
-          {data.payment?.network ||
-            "Algorand Testnet"}
-        </p>
-
-        <p
-          style={{
-            wordBreak: "break-all",
-          }}
-        >
-          <strong>Transaction ID:</strong>{" "}
-          {data.payment?.transaction_id ||
-            "Not available yet"}
-        </p>
-
-        {/* Payment Error */}
-
-        {paymentError && (
-          <div
-            style={{
-              marginTop: "14px",
-              padding: "12px",
-              borderRadius: "8px",
-              background: "#fee2e2",
-              color: "#991b1b",
-            }}
-          >
-            {paymentError}
-          </div>
-        )}
-
-        {/* OWNER ONLY: Pay Helper */}
-
-        {isOwner && !isPaid && (
+    <div className="connection-details-page">
+      <div className="connection-details-shell">
+        <header className="connection-details-topbar">
           <button
-            className="primary-button"
             type="button"
-            onClick={handlePayHelper}
-            disabled={paying}
-            style={{
-              marginTop: "16px",
-              width: "100%",
-              padding: "12px",
-              borderRadius: "8px",
-              border: "none",
-              cursor: paying
-                ? "not-allowed"
-                : "pointer",
-            }}
+            className="connection-details-back"
+            onClick={() => navigate(-1)}
+            aria-label="Go back"
           >
-            {paying
-              ? "Processing Payment..."
-              : `Pay Helper ${reward.toFixed(
-                  2
-                )} USDC`}
+            <ArrowLeft size={19} />
           </button>
-        )}
 
-        {/* OWNER ONLY: Paid */}
-
-        {isOwner && isPaid && (
-          <div
-            style={{
-              marginTop: "16px",
-              padding: "12px",
-              borderRadius: "8px",
-              background: "#dcfce7",
-              color: "#166534",
-              fontWeight: "600",
-            }}
-          >
-            ✓ Reward successfully paid
-            to helper
+          <div className="connection-details-topbar-copy">
+            <span>CampusShare</span>
+            <strong>Connection Details</strong>
           </div>
-        )}
+        </header>
 
-        {/* HELPER: Payment Pending */}
+        <main className="connection-details-content">
+          <section className="connection-details-hero">
+            <div className="connection-details-hero-copy">
+              <div className="connection-details-eyebrow">
+                <Sparkles size={12} />
+                TASK CONNECTION
+              </div>
 
-        {isHelper && !isPaid && (
-          <div
-            style={{
-              marginTop: "16px",
-              padding: "12px",
-              borderRadius: "8px",
-              background: "#eff6ff",
-              color: "#1e40af",
-              fontWeight: "500",
-            }}
-          >
-            Payment is pending. The task
-            owner will pay your reward.
+              <h1>You're connected.</h1>
+
+              <p>
+                Everything you need to coordinate the
+                task, meet your helper and complete the
+                reward payment is here.
+              </p>
+            </div>
+
+            <div className="connection-details-hero-icon">
+              <ShieldCheck size={32} />
+            </div>
+          </section>
+
+          <div className="connection-details-grid">
+
+            {/* TASK DETAILS */}
+            <section className="connection-details-card">
+              <div className="connection-details-card-heading">
+                <div className="connection-details-card-icon">
+                  <ReceiptText size={19} />
+                </div>
+
+                <div>
+                  <h2>Task Details</h2>
+                  <p>The task you're working on</p>
+                </div>
+              </div>
+
+              <h3 className="connection-details-task-title">
+                {data.task?.title || "Untitled Task"}
+              </h3>
+
+              <p className="connection-details-description">
+                {data.task?.description ||
+                  "No description provided."}
+              </p>
+
+              <div className="connection-details-info-grid">
+                <div className="connection-details-info">
+                  <span>Category</span>
+                  <strong>
+                    {data.task?.category || "N/A"}
+                  </strong>
+                </div>
+
+                <div className="connection-details-info">
+  <span>Reward</span>
+  <strong className="connection-details-reward">
+    ₹{reward.toFixed(2)}
+  </strong>
+</div>
+
+                <div className="connection-details-info">
+                  <span>Deadline</span>
+                  <strong>
+                    {data.task?.deadline
+                      ? new Date(
+                          data.task.deadline
+                        ).toLocaleString()
+                      : "N/A"}
+                  </strong>
+                </div>
+
+                <div className="connection-details-info">
+                  <span>Status</span>
+                  <strong>
+                    <span className="connection-details-status">
+                      {taskStatus}
+                    </span>
+                  </strong>
+                </div>
+              </div>
+            </section>
+
+            {/* MEETING DETAILS */}
+            <section className="connection-details-card">
+              <div className="connection-details-card-heading">
+                <div className="connection-details-card-icon purple">
+                  <MapPin size={19} />
+                </div>
+
+                <div>
+                  <h2>Meeting Details</h2>
+                  <p>Where and when to connect</p>
+                </div>
+              </div>
+
+              <div className="connection-details-meeting-list">
+                <div className="connection-details-meeting-item">
+                  <div className="connection-details-meeting-icon">
+                    <MapPin size={17} />
+                  </div>
+
+                  <div>
+                    <span>Location</span>
+                    <strong>
+                      {data.task?.location ||
+                        "Not specified"}
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="connection-details-meeting-item">
+                  <div className="connection-details-meeting-icon">
+                    <CalendarClock size={17} />
+                  </div>
+
+                  <div>
+                    <span>Meeting Time</span>
+                    <strong>
+                      {data.task?.meeting_time
+                        ? new Date(
+                            data.task.meeting_time
+                          ).toLocaleString()
+                        : "Not specified"}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* TASK OWNER */}
+            <section className="connection-details-card">
+              <div className="connection-details-card-heading">
+                <div className="connection-details-card-icon">
+                  <UserRound size={19} />
+                </div>
+
+                <div>
+                  <h2>Task Owner</h2>
+                  <p>Person who created this task</p>
+                </div>
+              </div>
+
+              <div className="connection-details-person">
+                <div className="connection-details-avatar">
+                  {ownerInitial}
+                </div>
+
+                <div className="connection-details-person-info">
+                  <h3>{ownerName}</h3>
+
+                  <p>
+                    {data.owner?.email ||
+                      "Email not available"}
+                  </p>
+
+                  {/* MOBILE NUMBER */}
+                  <div className="connection-details-mobile">
+                    <Phone size={13} />
+                    <span>
+                      {data.owner?.mobile ||
+                        "Mobile not available"}
+                    </span>
+                  </div>
+
+                  <div className="connection-details-wallet">
+                    <WalletCards size={11} />{" "}
+                    {data.owner?.wallet_address ||
+                      "Wallet not connected"}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* ACCEPTED HELPER */}
+            <section className="connection-details-card">
+              <div className="connection-details-card-heading">
+                <div className="connection-details-card-icon purple">
+                  <UserRound size={19} />
+                </div>
+
+                <div>
+                  <h2>Accepted By</h2>
+                  <p>Helper assigned to this task</p>
+                </div>
+              </div>
+
+              <div className="connection-details-person">
+                <div className="connection-details-avatar helper">
+                  {helperInitial}
+                </div>
+
+                <div className="connection-details-person-info">
+                  <h3>{helperName}</h3>
+
+                  <p>
+                    {data.helper?.email ||
+                      "Email not available"}
+                  </p>
+
+                  {/* MOBILE NUMBER */}
+                  <div className="connection-details-mobile">
+                    <Phone size={13} />
+                    <span>
+                      {data.helper?.mobile ||
+                        "Mobile not available"}
+                    </span>
+                  </div>
+
+                  <div className="connection-details-wallet">
+                    <WalletCards size={11} />{" "}
+                    {data.helper?.wallet_address ||
+                      "Wallet not connected"}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* PAYMENT DETAILS */}
+            <section className="connection-details-card full connection-details-payment">
+              <div className="connection-details-payment-content">
+                <div className="connection-details-payment-header">
+                  <div className="connection-details-card-heading">
+                    <div className="connection-details-card-icon green">
+                      <Coins size={19} />
+                    </div>
+
+                    <div>
+                      <h2>Payment Details</h2>
+                      <p>
+                        Razorpay reward settlement
+                      </p>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`connection-details-payment-badge ${
+                      isPaid ? "paid" : ""
+                    }`}
+                  >
+                    {isPaid ? (
+                      <CheckCircle2 size={13} />
+                    ) : (
+                      <Clock3 size={13} />
+                    )}
+
+                    {isPaid
+                      ? "Payment Completed"
+                      : "Payment Pending"}
+                  </div>
+                </div>
+
+                <div className="connection-details-payment-amount">
+                  ₹
+                  {Number(
+                    data.payment?.amount ?? reward
+                  ).toFixed(2)}
+                </div>
+
+                <div className="connection-details-payment-network">
+                  <Network size={12} />{" "}
+                  {data.payment?.payment_provider
+                    ? "Razorpay"
+                    : "Payment Gateway"}
+                </div>
+
+                <div className="connection-details-payment-details">
+                  <div className="connection-details-payment-detail">
+                    <span>Status</span>
+                    <strong>
+                      {isPaid ? "Paid" : "Pending"}
+                    </strong>
+                  </div>
+
+                  <div className="connection-details-payment-detail">
+                    <span>Payment Method</span>
+                    <strong>
+                      {data.payment?.payment_method ||
+                        "Not available"}
+                    </strong>
+                  </div>
+
+                  <div className="connection-details-payment-detail">
+                    <span>Task</span>
+                    <strong>
+                      {data.task?.title ||
+                        "Not available"}
+                    </strong>
+                  </div>
+
+                  <div className="connection-details-payment-detail">
+                    <span>Location</span>
+                    <strong>
+                      {data.task?.location ||
+                        "Not available"}
+                    </strong>
+                  </div>
+
+                  <div className="connection-details-payment-detail">
+                    <span>Payer Mobile</span>
+                    <strong>
+                      {data.payment?.payer?.mobile ||
+                        data.owner?.mobile ||
+                        "Not available"}
+                    </strong>
+                  </div>
+
+                  <div className="connection-details-payment-detail">
+                    <span>Helper Mobile</span>
+                    <strong>
+                      {data.payment?.receiver?.mobile ||
+                        data.helper?.mobile ||
+                        "Not available"}
+                    </strong>
+                  </div>
+
+                  <div className="connection-details-payment-detail">
+                    <span>Payer UPI</span>
+                    <strong>
+                      {data.payment?.payer?.upi_id ||
+                        "Not available"}
+                    </strong>
+                  </div>
+
+                  <div className="connection-details-payment-detail">
+                    <span>Helper UPI</span>
+                    <strong>
+                      {data.payment?.receiver?.upi_id ||
+                        "Not available"}
+                    </strong>
+                  </div>
+
+                  <div className="connection-details-payment-detail">
+                    <span>Razorpay Payment ID</span>
+                    <strong>
+                      {data.payment?.razorpay_payment_id ||
+                        "Not available"}
+                    </strong>
+                  </div>
+
+                  <div className="connection-details-payment-detail">
+                    <span>Order ID</span>
+                    <strong>
+                      {data.payment?.razorpay_order_id ||
+                        "Not available"}
+                    </strong>
+                  </div>
+
+                  <div className="connection-details-payment-detail">
+                    <span>Paid At</span>
+                    <strong>
+                      {data.payment?.paid_at
+                        ? new Date(
+                            data.payment.paid_at
+                          ).toLocaleString()
+                        : "Not available"}
+                    </strong>
+                  </div>
+                </div>
+
+                {data.payment?.transaction_id && (
+                  <div className="connection-details-tx">
+                    <div className="connection-details-tx-label">
+                      <ReceiptText size={12} />
+                      Transaction ID
+                    </div>
+
+                    <div className="connection-details-tx-value">
+                      {data.payment.transaction_id}
+                    </div>
+                  </div>
+                )}
+
+                {paymentError && (
+                  <div className="connection-details-error">
+                    <CircleAlert size={16} />
+                    <span>{paymentError}</span>
+                  </div>
+                )}
+
+                {isOwner && !isPaid && (
+                  <button
+                    className="connection-details-action"
+                    type="button"
+                    onClick={handlePayHelper}
+                    disabled={paying}
+                  >
+                    {paying ? (
+                      <>
+                        <Loader2
+                          size={17}
+                          className="connection-details-spinner"
+                        />
+                        Processing Payment...
+                      </>
+                    ) : (
+                      <>
+                        <Coins size={17} />
+                        Pay Helper ₹
+                        {reward.toFixed(2)}
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {isOwner && isPaid && (
+                  <div className="connection-details-success">
+                    <CheckCircle2 size={18} />
+                    <span>
+                      Reward successfully paid to helper.
+                    </span>
+                  </div>
+                )}
+
+                {isHelper && !isPaid && (
+                  <div className="connection-details-pending">
+                    <Clock3 size={18} />
+                    <span>
+                      Payment is pending. The task owner
+                      will pay your reward.
+                    </span>
+                  </div>
+                )}
+
+                {isHelper && isPaid && (
+                  <div className="connection-details-success">
+                    <CheckCircle2 size={18} />
+                    <span>
+                      You have received the task reward.
+                    </span>
+                  </div>
+                )}
+              </div>
+            </section>
           </div>
-        )}
-
-        {/* HELPER: Payment Paid */}
-
-        {isHelper && isPaid && (
-          <div
-            style={{
-              marginTop: "16px",
-              padding: "12px",
-              borderRadius: "8px",
-              background: "#dcfce7",
-              color: "#166534",
-              fontWeight: "600",
-            }}
-          >
-            ✓ You have received the task
-            reward
-          </div>
-        )}
+        </main>
       </div>
+
+      <BottomNavigation active="tasks" />
     </div>
   );
 }

@@ -1,6 +1,22 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MapPin, Clock, Star } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  Bot,
+  CheckCircle2,
+  Clock3,
+  Coins,
+  Laptop,
+  MapPin,
+  MessageCircle,
+  Package,
+  Send,
+  Sparkles,
+  Wallet,
+  XCircle,
+  Zap,
+} from "lucide-react";
 
 import {
   connectPeraWallet,
@@ -20,19 +36,15 @@ function CampusHelper() {
 
   const [walletAddress, setWalletAddress] = useState("");
   const [walletConnecting, setWalletConnecting] = useState(false);
-
   const [request, setRequest] = useState("");
   const [response, setResponse] = useState("");
-
   const [recommendations, setRecommendations] = useState({
     resources: [],
     tasks: [],
   });
-
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
 
-  // Connect Pera Wallet
   const handleConnectWallet = async () => {
     try {
       setWalletConnecting(true);
@@ -40,6 +52,7 @@ function CampusHelper() {
       const address = await connectPeraWallet();
 
       setWalletAddress(address);
+      setResponse("Pera Wallet connected. You are ready to ask the helper.");
     } catch (error) {
       console.error("Wallet connection failed:", error);
 
@@ -51,50 +64,42 @@ function CampusHelper() {
     }
   };
 
-  // Ask Campus Helper
   const handleAskHelper = async () => {
     if (!request.trim()) {
-      setResponse("Please tell me what you need help with.");
+      setResponse("Tell me what you need and I’ll find the closest match.");
       return;
     }
 
     if (!walletAddress) {
-      setResponse("Please connect your Pera Wallet first.");
+      setResponse("Connect your Pera Wallet first to use Campus Helper.");
       return;
     }
 
     setLoading(true);
     setResponse("");
-
     setRecommendations({
       resources: [],
       tasks: [],
     });
 
     try {
-      // Create Pera x402 signer
       const signer = createPeraX402Signer();
 
-      // Create Algorand AVM payment scheme
       const avmScheme = new ExactAvmScheme(signer, {
         algodUrl: "https://testnet-api.algonode.cloud",
       });
 
-      // Create x402 client
       const client = new x402Client();
 
-      // Register Algorand Testnet scheme
       client.register(
         "algorand:SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=",
         avmScheme
       );
 
-      // Wrap fetch so x402 payment can happen automatically
       const paidFetch = wrapFetchWithPayment(fetch, client);
 
-      // Call Campus Helper API
       const res = await paidFetch(
-        "http://localhost:3000/api/helper",
+        `${API_BASE_URL}/api/helper`,
         {
           method: "POST",
           headers: {
@@ -114,12 +119,11 @@ function CampusHelper() {
         );
       }
 
-      // Show helper's natural-language response
       setResponse(
-        data.message || "Here are some recommendations for you."
+        data.message ||
+          "I found some things that might help you."
       );
 
-      // Show structured recommendations
       setRecommendations({
         resources: data.results?.resources || [],
         tasks: data.results?.tasks || [],
@@ -129,7 +133,7 @@ function CampusHelper() {
 
       setResponse(
         error?.message ||
-          "Unable to connect to Campus Helper. Please make sure the backend is running."
+          "Unable to connect to Campus Helper. Make sure the backend is running."
       );
 
       setRecommendations({
@@ -141,7 +145,6 @@ function CampusHelper() {
     }
   };
 
-  // Borrow recommended resource
   const handleBorrowResource = async (resource) => {
     try {
       setActionLoading(`resource-${resource.id}`);
@@ -153,7 +156,6 @@ function CampusHelper() {
           `Successfully requested "${resource.title}".`
         );
 
-        // Refresh Resources page to show latest database state
         setTimeout(() => {
           navigate("/resources");
         }, 700);
@@ -173,7 +175,6 @@ function CampusHelper() {
     }
   };
 
-  // Apply for recommended task
   const handleApplyTask = async (task) => {
     try {
       setActionLoading(`task-${task.id}`);
@@ -185,7 +186,6 @@ function CampusHelper() {
           `You applied for "${task.title}". No payment is required to apply.`
         );
 
-        // Go to the existing connection details flow
         setTimeout(() => {
           navigate("/connection-details", {
             state: {
@@ -209,11 +209,9 @@ function CampusHelper() {
     }
   };
 
-  // Example request buttons
   const handleExampleClick = (example) => {
     setRequest(example);
     setResponse("");
-
     setRecommendations({
       resources: [],
       tasks: [],
@@ -224,277 +222,469 @@ function CampusHelper() {
     recommendations.resources.length > 0 ||
     recommendations.tasks.length > 0;
 
+  const formatDeadline = (deadline) => {
+    if (!deadline) return "No deadline";
+
+    const date = new Date(deadline);
+
+    if (Number.isNaN(date.getTime())) {
+      return "No deadline";
+    }
+
+    return date.toLocaleDateString(undefined, {
+      day: "numeric",
+      month: "short",
+    });
+  };
+
   return (
-    <div className="helper-page">
-      <div className="helper-card">
+    <div className="helper-page app-page-frame">
+      <div className="helper-background-orb helper-orb-one" />
+      <div className="helper-background-orb helper-orb-two" />
 
-        {/* Header */}
-        <div className="helper-header">
-          <div className="helper-icon">🤖</div>
+      <div className="helper-shell">
+        <header className="helper-topbar">
+          <button
+            type="button"
+            className="helper-back-button"
+            onClick={() => navigate("/home")}
+          >
+            <ArrowLeft size={19} />
+          </button>
 
-          <div>
-            <h1>Campus Helper</h1>
+          <div className="helper-brand">
+            <div className="helper-brand-icon">
+              <Sparkles size={17} />
+            </div>
 
-            {/* Pera Wallet */}
-            <button
-              type="button"
-              onClick={handleConnectWallet}
-              disabled={walletConnecting}
-            >
-              {walletConnecting
-                ? "Connecting..."
-                : walletAddress
-                ? `Connected: ${walletAddress.slice(
-                    0,
-                    6
-                  )}...${walletAddress.slice(-4)}`
-                : "Connect Pera Wallet"}
-            </button>
-
-            <p>
-              Tell me what you need in your own words.
-            </p>
+            <div>
+              <strong>Campus Helper</strong>
+              <span>AI campus concierge</span>
+            </div>
           </div>
-        </div>
-
-        {/* Request Input */}
-        <div className="helper-input-section">
-          <label htmlFor="helper-request">
-            What do you need help with?
-          </label>
-
-          <textarea
-            id="helper-request"
-            value={request}
-            onChange={(e) => setRequest(e.target.value)}
-            placeholder="Example: I need a calculator for tomorrow's class..."
-            rows="5"
-          />
 
           <button
             type="button"
-            className="ask-helper-button"
-            onClick={handleAskHelper}
-            disabled={loading}
+            className={`helper-wallet-button ${
+              walletAddress ? "connected" : ""
+            }`}
+            onClick={handleConnectWallet}
+            disabled={walletConnecting}
           >
-            {loading ? "Thinking..." : "Ask Helper"}
+            {walletAddress ? (
+              <>
+                <CheckCircle2 size={16} />
+                <span>
+                  {walletAddress.slice(0, 5)}...
+                  {walletAddress.slice(-4)}
+                </span>
+              </>
+            ) : (
+              <>
+                <Wallet size={16} />
+                <span>
+                  {walletConnecting
+                    ? "Connecting..."
+                    : "Connect wallet"}
+                </span>
+              </>
+            )}
           </button>
-        </div>
+        </header>
 
-        {/* Examples */}
-        <div className="examples-section">
-          <h3>Try an example</h3>
+        <main className="helper-content">
+          <section className="helper-hero">
+            <div className="helper-hero-copy">
+              <div className="helper-live-pill">
+                <span />
+                AI helper is online
+              </div>
 
-          <div className="example-buttons">
-            <button
-              type="button"
-              onClick={() =>
-                handleExampleClick(
-                  "I need a calculator for tomorrow's class."
-                )
-              }
-            >
-              📱 Need a calculator
-            </button>
+              <h1>
+                Tell me what
+                <br />
+                <em>you need.</em>
+              </h1>
 
-            <button
-              type="button"
-              onClick={() =>
-                handleExampleClick(
-                  "I need someone to help me with Python."
-                )
-              }
-            >
-              💻 Python help
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                handleExampleClick(
-                  "I want to borrow a laptop for two days."
-                )
-              }
-            >
-              💻 Borrow a laptop
-            </button>
-          </div>
-        </div>
-
-        {/* Helper Response */}
-        <div className="helper-response">
-          <h3>🤖 Helper Response</h3>
-
-          <div className="response-box">
-            {loading && (
-              <p>Processing your request...</p>
-            )}
-
-            {!loading && response && (
-              <p>{response}</p>
-            )}
-
-            {!loading && !response && (
-              <p className="response-placeholder">
-                Your helper response will appear here.
+              <p>
+                Describe it naturally. I’ll scan your campus
+                for resources and micro-tasks that match.
               </p>
-            )}
-          </div>
-        </div>
 
-        {/* Recommendations */}
-        {!loading && hasRecommendations && (
-          <div className="helper-recommendations">
+              <div className="helper-powered">
+                <Zap size={14} />
+                Powered by CampusShare + x402
+              </div>
+            </div>
 
-            {/* Resources */}
-            {recommendations.resources.length > 0 && (
-              <div className="recommendation-section">
-                <h3>📦 Recommended Resources</h3>
+            <div className="helper-hero-bot">
+              <div className="helper-bot-ring">
+                <Bot size={54} strokeWidth={1.7} />
+              </div>
 
-                <div className="recommendation-grid">
-                  {recommendations.resources.map((resource) => (
-                    <div
-                      className="recommendation-card"
-                      key={`resource-${resource.id}`}
-                    >
-                      <div className="recommendation-card-header">
-                        <h4>{resource.title}</h4>
+              <div className="helper-floating-chip chip-one">
+                <Package size={14} />
+                Resources
+              </div>
 
-                        <span className="recommendation-type">
-                          Resource
-                        </span>
-                      </div>
+              <div className="helper-floating-chip chip-two">
+                <Coins size={14} />
+                Micro-tasks
+              </div>
+            </div>
+          </section>
 
-                      <p className="recommendation-description">
-                        {resource.description ||
-                          "Campus resource available for borrowing."}
+          <section className="helper-command-card">
+            <div className="helper-command-top">
+              <div className="helper-command-label">
+                <MessageCircle size={17} />
+                <span>YOUR REQUEST</span>
+              </div>
+
+              <span className="helper-command-hint">
+                Natural language
+              </span>
+            </div>
+
+            <textarea
+              id="helper-request"
+              value={request}
+              onChange={(e) => setRequest(e.target.value)}
+              placeholder="e.g. I need a calculator for tomorrow's class..."
+              rows="4"
+              disabled={loading}
+            />
+
+            <div className="helper-command-bottom">
+              <span>
+                {request.length > 0
+                  ? `${request.length} characters`
+                  : "What can I help you find?"}
+              </span>
+
+              <button
+                type="button"
+                className="helper-ask-button"
+                onClick={handleAskHelper}
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <span className="helper-spinner" />
+                    Thinking...
+                  </>
+                ) : (
+                  <>
+                    Ask Helper
+                    <Send size={16} />
+                  </>
+                )}
+              </button>
+            </div>
+          </section>
+
+          <section className="helper-examples">
+            <div className="helper-section-heading">
+              <span>START HERE</span>
+              <h2>Try asking for...</h2>
+            </div>
+
+            <div className="helper-example-grid">
+              <button
+                type="button"
+                onClick={() =>
+                  handleExampleClick(
+                    "I need a calculator for tomorrow's class."
+                  )
+                }
+              >
+                <span className="helper-example-icon blue">
+                  <Laptop size={18} />
+                </span>
+
+                <span>
+                  <strong>Study gear</strong>
+                  <small>“Need a calculator”</small>
+                </span>
+
+                <ArrowUpRight size={16} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleExampleClick(
+                    "I need someone to help me with Python."
+                  )
+                }
+              >
+                <span className="helper-example-icon purple">
+                  <Bot size={18} />
+                </span>
+
+                <span>
+                  <strong>Skill help</strong>
+                  <small>“Help me with Python”</small>
+                </span>
+
+                <ArrowUpRight size={16} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleExampleClick(
+                    "I want to borrow a laptop for two days."
+                  )
+                }
+              >
+                <span className="helper-example-icon green">
+                  <Package size={18} />
+                </span>
+
+                <span>
+                  <strong>Borrow something</strong>
+                  <small>“Need a laptop”</small>
+                </span>
+
+                <ArrowUpRight size={16} />
+              </button>
+            </div>
+          </section>
+
+          {(loading || response) && (
+            <section className="helper-response-section">
+              <div className="helper-section-heading">
+                <span>AI RESPONSE</span>
+                <h2>Here’s what I found.</h2>
+              </div>
+
+              <div
+                className={`helper-response-card ${
+                  loading ? "is-loading" : ""
+                }`}
+              >
+                <div className="helper-response-avatar">
+                  <Sparkles size={19} />
+                </div>
+
+                <div className="helper-response-content">
+                  {loading ? (
+                    <>
+                      <strong>Searching your campus...</strong>
+                      <p>
+                        Matching your request with available
+                        resources and tasks.
                       </p>
-
-                      <p className="recommendation-detail">
-                        <strong>Category:</strong>{" "}
-                        {resource.category || "General"}
-                      </p>
-
-                      <p className="recommendation-detail">
-                        <strong>Owner:</strong>{" "}
-                        {resource.postedBy || "Campus student"}
-                      </p>
-
-                      <p className="recommendation-detail">
-                        <span className="available-status">
-                          ● {resource.availability || "Available"}
-                        </span>
-                      </p>
-
-                      <button
-                        type="button"
-                        className="recommendation-action"
-                        disabled={
-                          actionLoading ===
-                          `resource-${resource.id}`
-                        }
-                        onClick={() =>
-                          handleBorrowResource(resource)
-                        }
-                      >
-                        {actionLoading ===
-                        `resource-${resource.id}`
-                          ? "Borrowing..."
-                          : "Borrow Resource"}
-                      </button>
-                    </div>
-                  ))}
+                    </>
+                  ) : (
+                    <>
+                      <strong>Campus Helper</strong>
+                      <p>{response}</p>
+                    </>
+                  )}
                 </div>
               </div>
-            )}
+            </section>
+          )}
 
-            {/* Tasks */}
-            {recommendations.tasks.length > 0 && (
-              <div className="recommendation-section">
-                <h3>📝 Recommended Tasks</h3>
+          {!loading && hasRecommendations && (
+            <section className="helper-results">
+              {recommendations.resources.length > 0 && (
+                <div className="helper-result-section">
+                  <div className="helper-result-heading">
+                    <div>
+                      <span className="helper-result-number">
+                        01
+                      </span>
 
-                <div className="recommendation-grid">
-                  {recommendations.tasks.map((task) => (
-                    <div
-                      className="recommendation-card"
-                      key={`task-${task.id}`}
-                    >
-                      <div className="recommendation-card-header">
-                        <h4>{task.title}</h4>
-
-                        <span className="recommendation-type">
-                          Task
-                        </span>
+                      <div>
+                        <span>MATCHED FOR YOU</span>
+                        <h2>Resources</h2>
                       </div>
+                    </div>
 
-                      <p className="recommendation-description">
-                        {task.description ||
-                          "Campus task available for students."}
-                      </p>
+                    <span className="helper-result-count">
+                      {recommendations.resources.length}
+                    </span>
+                  </div>
 
-                      <p className="recommendation-detail">
-                        <strong>Category:</strong>{" "}
-                        {task.category || "General"}
-                      </p>
+                  <div className="helper-result-grid">
+                    {recommendations.resources.map(
+                      (resource) => (
+                        <article
+                          className="helper-result-card resource"
+                          key={`resource-${resource.id}`}
+                        >
+                          <div className="helper-result-card-top">
+                            <div className="helper-result-card-icon">
+                              <Package size={20} />
+                            </div>
 
-                      <p className="recommendation-detail">
-                        <MapPin size={14} />
-                        <strong> Location:</strong>{" "}
-                        {task.location || "Campus"}
-                      </p>
+                            <span className="helper-match-pill">
+                              Available
+                            </span>
+                          </div>
 
-                      <p className="recommendation-detail">
-                        <Clock size={14} />
-                        <strong> Deadline:</strong>{" "}
-                        {task.deadline
-                          ? new Date(
-                              task.deadline
-                            ).toLocaleString()
-                          : "Not specified"}
-                      </p>
+                          <h3>{resource.title}</h3>
 
-                      <p className="recommendation-reward">
-                        Reward: {task.reward || "0.00"} USDC
-                      </p>
+                          <p>
+                            {resource.description ||
+                              "Campus resource available for borrowing."}
+                          </p>
 
-                      <p className="recommendation-detail">
-                        <strong>Posted by:</strong>{" "}
-                        {task.postedBy || "Campus student"}
-                      </p>
+                          <div className="helper-card-details">
+                            <span>
+                              Category
+                              <strong>
+                                {resource.category ||
+                                  "General"}
+                              </strong>
+                            </span>
 
-                      <button
-                        type="button"
-                        className="recommendation-action"
-                        disabled={
-                          actionLoading ===
+                            <span>
+                              Owner
+                              <strong>
+                                {resource.postedBy ||
+                                  "Campus student"}
+                              </strong>
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="helper-result-action"
+                            disabled={
+                              actionLoading ===
+                              `resource-${resource.id}`
+                            }
+                            onClick={() =>
+                              handleBorrowResource(resource)
+                            }
+                          >
+                            {actionLoading ===
+                            `resource-${resource.id}`
+                              ? "Requesting..."
+                              : "Borrow resource"}
+
+                            <ArrowUpRight size={16} />
+                          </button>
+                        </article>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {recommendations.tasks.length > 0 && (
+                <div className="helper-result-section">
+                  <div className="helper-result-heading">
+                    <div>
+                      <span className="helper-result-number">
+                        02
+                      </span>
+
+                      <div>
+                        <span>EARN ON CAMPUS</span>
+                        <h2>Micro-tasks</h2>
+                      </div>
+                    </div>
+
+                    <span className="helper-result-count">
+                      {recommendations.tasks.length}
+                    </span>
+                  </div>
+
+                  <div className="helper-result-grid">
+                    {recommendations.tasks.map((task) => (
+                      <article
+                        className="helper-result-card task"
+                        key={`task-${task.id}`}
+                      >
+                        <div className="helper-result-card-top">
+                          <div className="helper-result-card-icon">
+                            <Coins size={20} />
+                          </div>
+
+                          <span className="helper-reward-pill">
+                            {Number(task.reward || 0).toFixed(
+                              2
+                            )}{" "}
+                            USDC
+                          </span>
+                        </div>
+
+                        <h3>{task.title}</h3>
+
+                        <p>
+                          {task.description ||
+                            "Campus task available for students."}
+                        </p>
+
+                        <div className="helper-task-meta">
+                          <span>
+                            <MapPin size={14} />
+                            {task.location || "Campus"}
+                          </span>
+
+                          <span>
+                            <Clock3 size={14} />
+                            {formatDeadline(task.deadline)}
+                          </span>
+                        </div>
+
+                        <div className="helper-task-poster">
+                          Posted by{" "}
+                          <strong>
+                            {task.postedBy ||
+                              "Campus student"}
+                          </strong>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="helper-result-action"
+                          disabled={
+                            actionLoading ===
+                            `task-${task.id}`
+                          }
+                          onClick={() =>
+                            handleApplyTask(task)
+                          }
+                        >
+                          {actionLoading ===
                           `task-${task.id}`
-                        }
-                        onClick={() =>
-                          handleApplyTask(task)
-                        }
-                      >
-                        {actionLoading ===
-                        `task-${task.id}`
-                          ? "Applying..."
-                          : "Apply for Task"}
-                      </button>
-                    </div>
-                  ))}
+                            ? "Applying..."
+                            : "Apply for task"}
+
+                          <ArrowUpRight size={16} />
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {!loading &&
+            response &&
+            !hasRecommendations && (
+              <div className="helper-no-results">
+                <div>
+                  <XCircle size={20} />
+                </div>
+
+                <div>
+                  <strong>No direct matches yet</strong>
+                  <p>
+                    Try adding a little more detail to your
+                    request and I’ll search again.
+                  </p>
                 </div>
               </div>
             )}
-
-            {/* No matches */}
-            {!hasRecommendations && (
-              <div className="no-recommendations">
-                <p>
-                  No matching resources or tasks were found.
-                  Try describing your request differently.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
+        </main>
       </div>
     </div>
   );

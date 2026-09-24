@@ -1,8 +1,17 @@
+import API_BASE_URL from "../api";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-
-import Header from "../components/Header";
+import {
+  ArrowLeft,
+  Check,
+  CircleAlert,
+  Edit3,
+  Loader2,
+  Save,
+  Sparkles,
+} from "lucide-react";
 import BottomNavigation from "../components/BottomNavigation";
+import "./EditResource.css";
 
 function EditResource() {
   const navigate = useNavigate();
@@ -12,7 +21,6 @@ function EditResource() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [availability, setAvailability] = useState("available");
-
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -28,7 +36,7 @@ function EditResource() {
         }
 
         const response = await fetch(
-          `http://localhost:3000/api/resources/${id}`,
+          `${API_BASE_URL}/api/resources/${id}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -74,7 +82,7 @@ function EditResource() {
       const token = localStorage.getItem("token");
 
       const response = await fetch(
-        `http://localhost:3000/api/resources/${id}`,
+        `${API_BASE_URL}/api/resources/${id}`,
         {
           method: "PUT",
           headers: {
@@ -98,7 +106,6 @@ function EditResource() {
       }
 
       alert("Resource updated successfully!");
-
       navigate("/my-resources");
     } catch (error) {
       console.error("Update resource error:", error);
@@ -110,12 +117,17 @@ function EditResource() {
 
   if (loading) {
     return (
-      <div className="page">
-        <Header title="Edit Resource" />
+      <div className="edit-resource-state-page">
+        <div className="edit-resource-state-card">
+          <div className="edit-resource-state-icon">
+            <Loader2 size={28} className="spin" />
+          </div>
 
-        <main className="page-content">
-          <p>Loading resource...</p>
-        </main>
+          <h2>Loading resource</h2>
+          <p>
+            Give us a moment while we fetch your resource details.
+          </p>
+        </div>
 
         <BottomNavigation active="profile" />
       </div>
@@ -124,28 +136,25 @@ function EditResource() {
 
   if (error) {
     return (
-      <div className="page">
-        <Header title="Edit Resource" />
+      <div className="edit-resource-state-page">
+        <div className="edit-resource-state-card">
+          <div className="edit-resource-state-icon error">
+            <CircleAlert size={28} />
+          </div>
 
-        <main className="page-content">
+          <h2>Couldn't load resource</h2>
+
+          <p>{error}</p>
+
           <button
             type="button"
-            className="small-button"
+            className="edit-resource-state-button"
             onClick={() => navigate("/my-resources")}
           >
-            ← Back
+            <ArrowLeft size={15} />
+            Back to My Resources
           </button>
-
-          <p
-            style={{
-              color: "red",
-              fontWeight: "600",
-              marginTop: "20px",
-            }}
-          >
-            {error}
-          </p>
-        </main>
+        </div>
 
         <BottomNavigation active="profile" />
       </div>
@@ -153,102 +162,169 @@ function EditResource() {
   }
 
   return (
-    <div className="page">
-      <Header title="Edit Resource" />
-
-      <main className="page-content">
-        <button
-          type="button"
-          className="small-button"
-          onClick={() => navigate("/my-resources")}
-        >
-          ← Back
-        </button>
-
-        <h2 style={{ marginTop: "20px" }}>
-          Edit Resource
-        </h2>
-
-        <form onSubmit={handleUpdate}>
-          <label>Title</label>
-
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Enter resource title"
-            style={{
-              width: "100%",
-              padding: "12px",
-              marginTop: "8px",
-              marginBottom: "18px",
-              borderRadius: "8px",
-              border: "1px solid #d1d5db",
-            }}
-          />
-
-          <label>Description</label>
-
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Enter description"
-            rows="4"
-            style={{
-              width: "100%",
-              padding: "12px",
-              marginTop: "8px",
-              marginBottom: "18px",
-              borderRadius: "8px",
-              border: "1px solid #d1d5db",
-              resize: "vertical",
-            }}
-          />
-
-          <label>Category</label>
-
-          <input
-            type="text"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            placeholder="Enter category"
-            style={{
-              width: "100%",
-              padding: "12px",
-              marginTop: "8px",
-              marginBottom: "18px",
-              borderRadius: "8px",
-              border: "1px solid #d1d5db",
-            }}
-          />
-
-          <label>Availability</label>
-
-          <select
-            value={availability}
-            onChange={(e) => setAvailability(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "12px",
-              marginTop: "8px",
-              marginBottom: "20px",
-              borderRadius: "8px",
-              border: "1px solid #d1d5db",
-            }}
-          >
-            <option value="available">Available</option>
-            <option value="unavailable">Unavailable</option>
-          </select>
-
+    <div className="edit-resource-page app-page-frame">
+      <div className="edit-resource-shell">
+        <header className="edit-resource-topbar">
           <button
-            type="submit"
-            className="logout-button"
-            disabled={saving}
+            type="button"
+            className="edit-resource-back"
+            onClick={() => navigate("/my-resources")}
+            aria-label="Back"
           >
-            {saving ? "Saving..." : "Save Changes"}
+            <ArrowLeft size={19} />
           </button>
-        </form>
-      </main>
+
+          <div className="edit-resource-topbar-copy">
+            <span>CampusShare</span>
+            <strong>Edit Resource</strong>
+          </div>
+        </header>
+
+        <main className="edit-resource-content">
+          <section className="edit-resource-hero">
+            <div>
+              <span className="edit-resource-eyebrow">
+                <Sparkles size={11} /> UPDATE YOUR LISTING
+              </span>
+
+              <h1>Make it better.</h1>
+
+              <p>
+                Keep your resource details accurate so students know
+                exactly what is available and how to use it.
+              </p>
+            </div>
+
+            <div className="edit-resource-hero-icon">
+              <Edit3 size={30} />
+            </div>
+          </section>
+
+          <section className="edit-resource-card">
+            <form
+              className="edit-resource-form"
+              onSubmit={handleUpdate}
+            >
+              <div className="edit-resource-field">
+                <label htmlFor="resource-title">
+                  Resource title
+                </label>
+
+                <input
+                  id="resource-title"
+                  className="edit-resource-input"
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. DBMS Notes, Scientific Calculator"
+                />
+              </div>
+
+              <div className="edit-resource-field">
+                <label htmlFor="resource-description">
+                  Description <span>Optional</span>
+                </label>
+
+                <textarea
+                  id="resource-description"
+                  className="edit-resource-textarea"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Add useful details about the resource..."
+                  rows="5"
+                />
+              </div>
+
+              <div className="edit-resource-grid">
+                <div className="edit-resource-field">
+                  <label htmlFor="resource-category">
+                    Category
+                  </label>
+
+                  <input
+                    id="resource-category"
+                    className="edit-resource-input"
+                    type="text"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    placeholder="e.g. Books, Electronics"
+                  />
+                </div>
+
+                <div className="edit-resource-field">
+                  <label>Availability</label>
+
+                  <div className="edit-resource-availability">
+                    <div className="edit-resource-availability-option">
+                      <input
+                        id="availability-available"
+                        type="radio"
+                        name="availability"
+                        value="available"
+                        checked={availability === "available"}
+                        onChange={(e) =>
+                          setAvailability(e.target.value)
+                        }
+                      />
+
+                      <label htmlFor="availability-available">
+                        <Check size={15} />
+                        Available
+                      </label>
+                    </div>
+
+                    <div className="edit-resource-availability-option">
+                      <input
+                        id="availability-unavailable"
+                        type="radio"
+                        name="availability"
+                        value="unavailable"
+                        checked={availability === "unavailable"}
+                        onChange={(e) =>
+                          setAvailability(e.target.value)
+                        }
+                      />
+
+                      <label htmlFor="availability-unavailable">
+                        Unavailable
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="edit-resource-form-footer">
+                <button
+                  type="button"
+                  className="edit-resource-cancel"
+                  onClick={() => navigate("/my-resources")}
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="edit-resource-save"
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 size={16} className="spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} />
+                      Save Changes
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </section>
+        </main>
+      </div>
 
       <BottomNavigation active="profile" />
     </div>

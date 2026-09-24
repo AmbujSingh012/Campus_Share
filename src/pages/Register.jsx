@@ -1,4 +1,11 @@
+import API_BASE_URL from "../api";
+
+import "./Register.css";
+
 import { useEffect, useState } from "react";
+
+import { ArrowRight, Eye, EyeOff, Sparkles } from "lucide-react";
+
 import { useNavigate } from "react-router-dom";
 
 function Register() {
@@ -6,10 +13,12 @@ function Register() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [mobile, setMobile] = useState("");
   const [password, setPassword] = useState("");
-  const [collegeId, setCollegeId] = useState("");
 
-  const [colleges, setColleges] = useState([]);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [collegeId, setCollegeId] = useState("");
 
   const [loadingColleges, setLoadingColleges] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -17,71 +26,67 @@ function Register() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
-  /*
-  ========================================
-  LOAD COLLEGES
-  ========================================
-  */
+  const [selectedCollege, setSelectedCollege] = useState(null);
 
   useEffect(() => {
-    async function loadColleges() {
+    const savedCollege = localStorage.getItem("selectedCollege");
+
+    if (savedCollege) {
       try {
-        /*
-          For now, these colleges match
-          your database.
-        */
-
-        setColleges([
-          {
-            id: 1,
-            name: "IIT Delhi",
-          },
-          {
-            id: 2,
-            name: "IIT Bombay",
-          },
-          {
-            id: 3,
-            name: "NIT Delhi",
-          },
-        ]);
-      } catch (err) {
-        console.error("College loading error:", err);
-
-        setError("Unable to load colleges.");
-      } finally {
-        setLoadingColleges(false);
+        setSelectedCollege(JSON.parse(savedCollege));
+      } catch (error) {
+        console.error("Selected college error:", error);
       }
     }
 
-    loadColleges();
+    setLoadingColleges(false);
   }, []);
 
-  /*
-  ========================================
-  REGISTER
-  ========================================
-  */
+  useEffect(() => {
+    if (!selectedCollege) {
+      setCollegeId("");
+      return;
+    }
 
-  const handleSubmit = async (event) => {
+    if (selectedCollege.id) {
+      setCollegeId(String(selectedCollege.id));
+      return;
+    }
+
+    setCollegeId("");
+  }, [selectedCollege]);
+
+  const handleMobileChange = (event) => {
+    const value = event.target.value.replace(/\D/g, "").slice(0, 10);
+    setMobile(value);
+  };
+
+  const handleRegister = async (event) => {
     event.preventDefault();
 
     setError("");
     setMessage("");
 
-    // Validate name
     if (!name.trim()) {
       setError("Please enter your name.");
       return;
     }
 
-    // Validate email
     if (!email.trim()) {
       setError("Please enter your email.");
       return;
     }
 
-    // Validate password
+    if (!mobile.trim()) {
+      setError("Please enter your mobile number.");
+      return;
+    }
+
+    if (!/^[6-9]\d{9}$/.test(mobile)) {
+      setError("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+
     if (!password) {
       setError("Please enter a password.");
       return;
@@ -92,7 +97,6 @@ function Register() {
       return;
     }
 
-    // Validate college
     if (!collegeId) {
       setError("Please select your college.");
       return;
@@ -102,7 +106,7 @@ function Register() {
       setLoading(true);
 
       const response = await fetch(
-        "http://localhost:3000/api/auth/register",
+        `${API_BASE_URL}/api/auth/register`,
         {
           method: "POST",
           headers: {
@@ -111,6 +115,7 @@ function Register() {
           body: JSON.stringify({
             name: name.trim(),
             email: email.trim(),
+            mobile: mobile.trim(),
             password,
             college_id: Number(collegeId),
           }),
@@ -120,32 +125,25 @@ function Register() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(
-          data.message || "Registration failed."
-        );
+        throw new Error(data.message || "Registration failed.");
       }
 
-      setMessage(
-        "Registration successful! Redirecting to login..."
-      );
+      setMessage("Account created successfully! Redirecting...");
 
-      // Clear form
       setName("");
       setEmail("");
+      setMobile("");
       setPassword("");
       setCollegeId("");
 
-      // Go to login
       setTimeout(() => {
         navigate("/login");
       }, 1000);
-
     } catch (err) {
       console.error("Registration error:", err);
 
       setError(
-        err.message ||
-          "Unable to connect to backend."
+        err.message || "Unable to connect to backend."
       );
     } finally {
       setLoading(false);
@@ -153,178 +151,252 @@ function Register() {
   };
 
   return (
-    <div className="page">
-      <main className="page-content">
-        <div
-          style={{
-            maxWidth: "500px",
-            margin: "40px auto",
-            padding: "20px",
-          }}
-        >
-          <h2>Create Account</h2>
+    <div className="auth-page app-page-frame">
+      <div className="auth-background-shape auth-shape-one"></div>
+      <div className="auth-background-shape auth-shape-two"></div>
 
-          <p>
-            Register for CampusShare
-          </p>
+      <div className="auth-shell">
+        <section className="auth-showcase">
+          <div className="auth-brand">
+            <div className="auth-brand-icon">C</div>
+            <span>CampusShare</span>
+          </div>
 
-          {message && (
-            <p
-              style={{
-                color: "green",
-                fontWeight: "600",
-              }}
-            >
-              {message}
+          <div className="auth-showcase-content">
+            <div className="auth-pill">
+              <Sparkles size={14} />
+              Join your campus
+            </div>
+
+            <h1>
+              Make campus life
+              <br />
+              <span>more connected.</span>
+            </h1>
+
+            <p>
+              Create your CampusShare account and discover resources,
+              student help, and opportunities around your campus.
             </p>
-          )}
 
-          {error && (
-            <p
-              style={{
-                color: "red",
-                fontWeight: "600",
-              }}
-            >
-              {error}
-            </p>
-          )}
+            <div className="auth-mini-cards">
+              <div>
+                <strong>01</strong>
+                <span>Share resources</span>
+              </div>
 
-          <form onSubmit={handleSubmit}>
+              <div>
+                <strong>02</strong>
+                <span>Find what you need</span>
+              </div>
 
-            {/* Name */}
-            <div style={{ marginBottom: "15px" }}>
-              <label>
-                Name
-              </label>
-
-              <input
-                type="text"
-                value={name}
-                onChange={(e) =>
-                  setName(e.target.value)
-                }
-                placeholder="Enter your name"
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  marginTop: "5px",
-                }}
-              />
+              <div>
+                <strong>03</strong>
+                <span>Connect with students</span>
+              </div>
             </div>
+          </div>
 
-            {/* Email */}
-            <div style={{ marginBottom: "15px" }}>
-              <label>
-                Email
-              </label>
+          <div className="auth-showcase-footer">
+            <span>Built for students</span>
+            <span>•</span>
+            <span>Made for campus life</span>
+          </div>
+        </section>
 
-              <input
-                type="email"
-                value={email}
-                onChange={(e) =>
-                  setEmail(e.target.value)
-                }
-                placeholder="example@gmail.com"
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  marginTop: "5px",
-                }}
-              />
-            </div>
-
-            {/* Password */}
-            <div style={{ marginBottom: "15px" }}>
-              <label>
-                Password
-              </label>
-
-              <input
-                type="password"
-                value={password}
-                onChange={(e) =>
-                  setPassword(e.target.value)
-                }
-                placeholder="Enter password"
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  marginTop: "5px",
-                }}
-              />
-            </div>
-
-            {/* College */}
-            <div style={{ marginBottom: "15px" }}>
-              <label>
-                College
-              </label>
-
-              <select
-                value={collegeId}
-                onChange={(e) =>
-                  setCollegeId(e.target.value)
-                }
-                disabled={loadingColleges}
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  marginTop: "5px",
-                }}
+        <section className="auth-form-section">
+          <div className="auth-form-card">
+            {selectedCollege && (
+              <button
+                type="button"
+                className="selected-campus"
+                onClick={() => navigate("/")}
               >
-                <option value="">
-                  {loadingColleges
-                    ? "Loading colleges..."
-                    : "Select your college"}
-                </option>
+                <span className="selected-campus-icon">🎓</span>
 
-                {colleges.map((college) => (
-                  <option
-                    key={college.id}
-                    value={college.id}
-                  >
-                    {college.name}
-                  </option>
-                ))}
-              </select>
+                <span>
+                  <small>Campus selected</small>
+                  <strong>{selectedCollege.name}</strong>
+                </span>
+
+                <ArrowRight size={16} />
+              </button>
+            )}
+
+            <div className="auth-heading">
+              <span>Welcome to CampusShare ✨</span>
+
+              <h2>Create your account.</h2>
+
+              <p>
+                Join your campus community and start sharing.
+              </p>
             </div>
 
-            {/* Register button */}
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: "100%",
-                padding: "12px",
-                cursor: loading
-                  ? "not-allowed"
-                  : "pointer",
-              }}
-            >
-              {loading
-                ? "Registering..."
-                : "Register"}
-            </button>
-          </form>
+            {error && (
+              <div className="auth-error">
+                {error}
+              </div>
+            )}
 
-          <p style={{ marginTop: "20px" }}>
-            Already have an account?{" "}
+            {message && (
+              <div className="auth-success">
+                {message}
+              </div>
+            )}
+
+            <form
+              onSubmit={handleRegister}
+              className="auth-form"
+            >
+              <div className="auth-field">
+                <label>
+                  Full name
+                </label>
+
+                <input
+                  type="text"
+                  placeholder="Enter your name"
+                  value={name}
+                  onChange={(e) =>
+                    setName(e.target.value)
+                  }
+                  disabled={loading}
+                  required
+                />
+              </div>
+
+              <div className="auth-field">
+                <label>
+                  Email address
+                </label>
+
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) =>
+                    setEmail(e.target.value)
+                  }
+                  disabled={loading}
+                  required
+                />
+              </div>
+
+              <div className="auth-field">
+                <label>
+                  Mobile number
+                </label>
+
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="10-digit mobile number"
+                  value={mobile}
+                  onChange={handleMobileChange}
+                  disabled={loading}
+                  maxLength={10}
+                  required
+                />
+
+                <small className="password-hint">
+                  Required for payments and student connections
+                </small>
+              </div>
+
+              <div className="auth-field">
+                <label>
+                  Password
+                </label>
+
+                <div className="auth-password">
+                  <input
+                    type={
+                      showPassword
+                        ? "text"
+                        : "password"
+                    }
+                    placeholder="Create a password"
+                    value={password}
+                    onChange={(e) =>
+                      setPassword(e.target.value)
+                    }
+                    disabled={loading}
+                    required
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowPassword(!showPassword)
+                    }
+                    disabled={loading}
+                    aria-label="Toggle password visibility"
+                  >
+                    {showPassword ? (
+                      <EyeOff size={18} />
+                    ) : (
+                      <Eye size={18} />
+                    )}
+                  </button>
+                </div>
+
+                <small className="password-hint">
+                  Minimum 6 characters
+                </small>
+              </div>
+
+              <button
+                type="submit"
+                className="auth-submit"
+                disabled={loading}
+              >
+                <span>
+                  {loading
+                    ? "Creating account..."
+                    : "Create my account"}
+                </span>
+
+                {!loading && (
+                  <ArrowRight size={18} />
+                )}
+              </button>
+            </form>
+
+            <div className="auth-divider">
+              <span></span>
+              <small>OR</small>
+              <span></span>
+            </div>
+
             <button
               type="button"
-              onClick={() => navigate("/login")}
-              style={{
-                border: "none",
-                background: "none",
-                cursor: "pointer",
-                textDecoration: "underline",
-              }}
+              className="auth-google"
+              onClick={() =>
+                alert(
+                  "Google signup will be connected later."
+                )
+              }
+              disabled={loading}
             >
-              Login
+              <span className="google-g">G</span>
+              Continue with Google
             </button>
-          </p>
-        </div>
-      </main>
+
+            <p className="auth-switch">
+              Already have an account?
+
+              <button
+                type="button"
+                onClick={() => navigate("/login")}
+                disabled={loading}
+              >
+                Login
+              </button>
+            </p>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

@@ -497,23 +497,98 @@ app.post("/api/tasks", (req, res) => {
 
 app.get("/api/tasks", (req, res) => {
 
+    let currentUserId = null;
+
+    const authHeader = req.headers.authorization || "";
+
+    if (authHeader.startsWith("Bearer ")) {
+
+        const token = authHeader.substring(7);
+
+        try {
+
+            const decoded = jwt.verify(token, JWT_SECRET);
+
+            currentUserId = decoded.userId;
+
+        } catch (error) {
+
+            console.log("Invalid or expired task token");
+
+        }
+
+    }
+
+    const sql = `
+        SELECT
+            t.*,
+
+            (
+                SELECT p.status
+                FROM payments p
+                WHERE p.task_id = t.id
+                  AND p.payer_id = ?
+                ORDER BY p.id DESC
+                LIMIT 1
+            ) AS my_payment_status,
+
+            (
+                SELECT p.transaction_id
+                FROM payments p
+                WHERE p.task_id = t.id
+                  AND p.payer_id = ?
+                ORDER BY p.id DESC
+                LIMIT 1
+            ) AS my_transaction_id,
+
+            (
+                SELECT p.status
+                FROM payments p
+                WHERE p.task_id = t.id
+                ORDER BY p.id DESC
+                LIMIT 1
+            ) AS task_payment_status,
+
+            (
+                SELECT p.transaction_id
+                FROM payments p
+                WHERE p.task_id = t.id
+                ORDER BY p.id DESC
+                LIMIT 1
+            ) AS task_transaction_id
+
+        FROM tasks t
+        ORDER BY t.id DESC
+    `;
+
     db.query(
-        "SELECT * FROM tasks ORDER BY id DESC",
+        sql,
+        [currentUserId, currentUserId],
         (err, results) => {
 
             if (err) {
+
                 console.error("Database error:", err);
 
                 return res.status(500).json({
+
+                    success: false,
                     message: "Database error"
+
                 });
+
             }
 
             res.json({
+
+                success: true,
                 tasks: results
+
             });
+
         }
     );
+
 });
 
 // =====================================================

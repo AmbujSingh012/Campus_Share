@@ -10,3 +10,11 @@ backend/server.js.backup
 # Temporary/debug files
 backend/helper-payment-debug.js
 backend/routes/taskRoutes.js.save
+
+# Backup/version files
+*.backup
+*.before-*
+*.save
+
+# Uploaded resource images
+backend/uploads/resources/*.png

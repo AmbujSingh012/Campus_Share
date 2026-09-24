@@ -1,4 +1,5 @@
 import { Search } from "lucide-react";
+import "./SearchBar.css";
 
 function SearchBar({ placeholder = "Search...", value, onChange }) {
   return (
