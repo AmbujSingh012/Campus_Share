@@ -98,30 +98,6 @@ const x402Routes = {
 
     mimeType: "application/json",
   },
-
-  "POST /api/helper": {
-    accepts: {
-      scheme: "exact",
-
-      network: ALGORAND_TESTNET_CAIP2,
-
-      payTo: PAY_TO,
-
-      price: {
-        asset: USDC_TESTNET_ASA_ID.toString(),
-        amount: X402_AMOUNT,
-
-        extra: {
-          name: "USDC",
-          decimals: 6,
-        },
-      },
-    },
-
-    description: "CampusShare Campus Helper",
-
-    mimeType: "application/json",
-  },
 };
 
 // =====================================================
@@ -386,12 +362,7 @@ app.listen(PORT, async () => {
   console.log(
     `CampusShare Backend running on port ${PORT}`
   );
-
-  console.log(
-    `x402 payment amount: ${X402_USDC_AMOUNT} USDC`
-  );
-
-  try {
+try {
     const connection =
       await db.getConnection();
 

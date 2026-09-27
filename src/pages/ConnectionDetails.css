@@ -325,17 +325,7 @@
   overflow-wrap: anywhere;
 }
 
-.connection-details-wallet {
-  padding: 9px 11px;
-  border: 1px dashed #dbe3ef;
-  border-radius: 11px;
-  background: #f8fafc;
-  color: #475569;
-  font-family: monospace;
-  font-size: 10px;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
+
 
 .connection-details-meeting-list {
   display: grid;

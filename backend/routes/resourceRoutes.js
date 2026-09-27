@@ -1,4 +1,3 @@
-
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
@@ -44,7 +43,9 @@ const upload = multer({
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error("Only JPG and PNG images are allowed"));
+      cb(
+        new Error("Only JPG and PNG images are allowed")
+      );
     }
   },
 });
@@ -56,38 +57,41 @@ const upload = multer({
 router.use(authenticateToken);
 
 // =====================================================
+// ACTIVE COLLEGE HELPER
+// =====================================================
+
+function getActiveCollegeId(req) {
+  const collegeId = Number(req.user?.collegeId);
+
+  if (
+    !Number.isInteger(collegeId) ||
+    collegeId <= 0
+  ) {
+    return null;
+  }
+
+  return collegeId;
+}
+
+// =====================================================
 // GET ALL RESOURCES
-// Only Available and Borrowed resources are shown
-// Returned resources are NOT shown on marketplace
+// Only resources from ACTIVE COLLEGE
 // =====================================================
 
 router.get("/", async (req, res) => {
   try {
-    const userId = req.user.userId;
-
-    const [users] = await db.execute(
-      "SELECT college_id FROM users WHERE id = ?",
-      [userId]
-    );
-
-    if (users.length === 0) {
-      return res.status(401).json({
-        success: false,
-        message: "Authenticated user not found",
-      });
-    }
-
-    const collegeId = users[0].college_id;
+    const collegeId = getActiveCollegeId(req);
 
     if (!collegeId) {
       return res.status(403).json({
         success: false,
-        message: "User is not associated with a college",
+        message: "No active college selected",
       });
     }
 
     const [resources] = await db.execute(
-      `SELECT
+      `
+      SELECT
         r.id,
         r.user_id,
         r.title,
@@ -116,18 +120,21 @@ router.get("/", async (req, res) => {
         borrower.email AS borrowerEmail,
         borrower.mobile AS borrowerMobile
 
-       FROM resources r
+      FROM resources r
 
-       JOIN users owner
-         ON r.user_id = owner.id
+      JOIN users owner
+        ON r.user_id = owner.id
 
-       LEFT JOIN users borrower
-         ON r.borrowed_by = borrower.id
+      LEFT JOIN users borrower
+        ON r.borrowed_by = borrower.id
 
-       WHERE r.college_id = ?
-         AND LOWER(COALESCE(r.availability, '')) IN ('available', 'borrowed')
+      WHERE r.college_id = ?
+        AND LOWER(
+          COALESCE(r.availability, '')
+        ) IN ('available', 'borrowed')
 
-       ORDER BY r.created_at DESC`,
+      ORDER BY r.created_at DESC
+      `,
       [collegeId]
     );
 
@@ -148,16 +155,25 @@ router.get("/", async (req, res) => {
 
 // =====================================================
 // GET MY RESOURCES
-// Includes Returned resources
-// Owner can see resources after they are returned
+// Only resources created by current user
+// AND belonging to ACTIVE COLLEGE
 // =====================================================
 
 router.get("/my", async (req, res) => {
   try {
     const userId = req.user.userId;
+    const collegeId = getActiveCollegeId(req);
+
+    if (!collegeId) {
+      return res.status(403).json({
+        success: false,
+        message: "No active college selected",
+      });
+    }
 
     const [resources] = await db.execute(
-      `SELECT
+      `
+      SELECT
         r.id,
         r.user_id,
         r.title,
@@ -186,18 +202,20 @@ router.get("/my", async (req, res) => {
         borrower.email AS borrowerEmail,
         borrower.mobile AS borrowerMobile
 
-       FROM resources r
+      FROM resources r
 
-       JOIN users owner
-         ON r.user_id = owner.id
+      JOIN users owner
+        ON r.user_id = owner.id
 
-       LEFT JOIN users borrower
-         ON r.borrowed_by = borrower.id
+      LEFT JOIN users borrower
+        ON r.borrowed_by = borrower.id
 
-       WHERE r.user_id = ?
+      WHERE r.user_id = ?
+        AND r.college_id = ?
 
-       ORDER BY r.created_at DESC`,
-      [userId]
+      ORDER BY r.created_at DESC
+      `,
+      [userId, collegeId]
     );
 
     res.json({
@@ -210,19 +228,28 @@ router.get("/my", async (req, res) => {
 
     res.status(500).json({
       success: false,
-      message: "Server error while fetching your resources",
+      message:
+        "Server error while fetching your resources",
     });
   }
 });
 
 // =====================================================
 // GET BORROWED RESOURCES
-// Resources currently borrowed by logged-in user
+// Only borrowed resources from ACTIVE COLLEGE
 // =====================================================
 
 router.get("/borrowed", async (req, res) => {
   try {
     const borrowerId = req.user.userId;
+    const collegeId = getActiveCollegeId(req);
+
+    if (!collegeId) {
+      return res.status(403).json({
+        success: false,
+        message: "No active college selected",
+      });
+    }
 
     const [resources] = await db.execute(
       `
@@ -257,11 +284,14 @@ router.get("/borrowed", async (req, res) => {
         ON r.user_id = owner.id
 
       WHERE r.borrowed_by = ?
-        AND LOWER(COALESCE(r.availability, '')) = 'borrowed'
+        AND r.college_id = ?
+        AND LOWER(
+          COALESCE(r.availability, '')
+        ) = 'borrowed'
 
       ORDER BY r.borrowed_at DESC
       `,
-      [borrowerId]
+      [borrowerId, collegeId]
     );
 
     res.json({
@@ -285,17 +315,21 @@ router.get("/borrowed", async (req, res) => {
 
 // =====================================================
 // GET RETURNED RESOURCES
-//
-// Returned resources are visible to:
-// 1. Owner
-// 2. Previous borrower
-//
-// This is where both users can rate each other.
+// Owner or previous borrower
+// ONLY FROM ACTIVE COLLEGE
 // =====================================================
 
 router.get("/returned", async (req, res) => {
   try {
     const userId = req.user.userId;
+    const collegeId = getActiveCollegeId(req);
+
+    if (!collegeId) {
+      return res.status(403).json({
+        success: false,
+        message: "No active college selected",
+      });
+    }
 
     const [resources] = await db.execute(
       `
@@ -325,7 +359,6 @@ router.get("/returned", async (req, res) => {
         borrower.mobile AS borrowerMobile,
 
         p.receiver_id AS ownerId,
-
         p.amount AS paymentAmount,
         p.transaction_id AS paymentTransactionId,
         p.paid_at,
@@ -359,8 +392,11 @@ router.get("/returned", async (req, res) => {
       JOIN users borrower
         ON borrower.id = p.payer_id
 
-      WHERE
-        LOWER(COALESCE(r.availability, '')) = 'returned'
+      WHERE LOWER(
+          COALESCE(r.availability, '')
+        ) = 'returned'
+
+        AND r.college_id = ?
 
         AND (
           r.user_id = ?
@@ -376,7 +412,12 @@ router.get("/returned", async (req, res) => {
 
       ORDER BY p.paid_at DESC
       `,
-      [userId, userId, userId]
+      [
+        userId,
+        collegeId,
+        userId,
+        userId,
+      ]
     );
 
     res.json({
@@ -400,37 +441,23 @@ router.get("/returned", async (req, res) => {
 
 // =====================================================
 // GET AVAILABLE RESOURCES
-// Only genuinely Available resources are shown
-// Returned resources are NOT included
+// ONLY ACTIVE COLLEGE
 // =====================================================
 
 router.get("/available", async (req, res) => {
   try {
-    const userId = req.user.userId;
-
-    const [users] = await db.execute(
-      "SELECT college_id FROM users WHERE id = ?",
-      [userId]
-    );
-
-    if (users.length === 0) {
-      return res.status(401).json({
-        success: false,
-        message: "Authenticated user not found",
-      });
-    }
-
-    const collegeId = users[0].college_id;
+    const collegeId = getActiveCollegeId(req);
 
     if (!collegeId) {
       return res.status(403).json({
         success: false,
-        message: "User is not associated with a college",
+        message: "No active college selected",
       });
     }
 
     const [resources] = await db.execute(
-      `SELECT
+      `
+      SELECT
         r.id,
         r.user_id,
         r.title,
@@ -453,18 +480,21 @@ router.get("/available", async (req, res) => {
         borrower.email AS borrowerEmail,
         borrower.mobile AS borrowerMobile
 
-       FROM resources r
+      FROM resources r
 
-       JOIN users owner
-         ON r.user_id = owner.id
+      JOIN users owner
+        ON r.user_id = owner.id
 
-       LEFT JOIN users borrower
-         ON r.borrowed_by = borrower.id
+      LEFT JOIN users borrower
+        ON r.borrowed_by = borrower.id
 
-       WHERE r.college_id = ?
-         AND LOWER(COALESCE(r.availability, '')) = 'available'
+      WHERE r.college_id = ?
+        AND LOWER(
+          COALESCE(r.availability, '')
+        ) = 'available'
 
-       ORDER BY r.created_at DESC`,
+      ORDER BY r.created_at DESC
+      `,
       [collegeId]
     );
 
@@ -489,6 +519,7 @@ router.get("/available", async (req, res) => {
 
 // =====================================================
 // GET RESOURCE BY ID
+// ONLY ACTIVE COLLEGE
 // =====================================================
 
 router.get("/:id", async (req, res) => {
@@ -502,24 +533,18 @@ router.get("/:id", async (req, res) => {
       });
     }
 
-    const userId = req.user.userId;
+    const collegeId = getActiveCollegeId(req);
 
-    const [users] = await db.execute(
-      "SELECT college_id FROM users WHERE id = ?",
-      [userId]
-    );
-
-    if (users.length === 0 || !users[0].college_id) {
+    if (!collegeId) {
       return res.status(403).json({
         success: false,
-        message: "User is not associated with a college",
+        message: "No active college selected",
       });
     }
 
-    const collegeId = users[0].college_id;
-
     const [resources] = await db.execute(
-      `SELECT
+      `
+      SELECT
         r.id,
         r.user_id,
         r.title,
@@ -542,16 +567,17 @@ router.get("/:id", async (req, res) => {
         borrower.email AS borrowerEmail,
         borrower.mobile AS borrowerMobile
 
-       FROM resources r
+      FROM resources r
 
-       JOIN users owner
-         ON r.user_id = owner.id
+      JOIN users owner
+        ON r.user_id = owner.id
 
-       LEFT JOIN users borrower
-         ON r.borrowed_by = borrower.id
+      LEFT JOIN users borrower
+        ON r.borrowed_by = borrower.id
 
-       WHERE r.id = ?
-         AND r.college_id = ?`,
+      WHERE r.id = ?
+        AND r.college_id = ?
+      `,
       [id, collegeId]
     );
 
@@ -571,155 +597,168 @@ router.get("/:id", async (req, res) => {
 
     res.status(500).json({
       success: false,
-      message: "Server error while fetching resource",
+      message:
+        "Server error while fetching resource",
     });
   }
 });
 
 // =====================================================
 // CREATE RESOURCE
-// WITH IMAGE UPLOAD
-//
-// Every new post creates a NEW resource listing.
-// This is how an owner can post the same physical item
-// again after it has been returned.
+// Resource belongs to ACTIVE COLLEGE
 // =====================================================
 
-router.post("/", upload.single("image"), async (req, res) => {
-  try {
-    const {
-      title,
-      description,
-      category,
-      availability,
-      location,
-      condition,
-      borrowingFee,
-    } = req.body;
+router.post(
+  "/",
+  upload.single("image"),
+  async (req, res) => {
+    try {
+      const {
+        title,
+        description,
+        category,
+        availability,
+        location,
+        condition,
+        borrowingFee,
+      } = req.body;
 
-    if (!title || !category) {
-      return res.status(400).json({
+      if (!title || !category) {
+        return res.status(400).json({
+          success: false,
+          message: "Title and category are required",
+        });
+      }
+
+      const userId = req.user.userId;
+      const collegeId = getActiveCollegeId(req);
+
+      if (!collegeId) {
+        return res.status(403).json({
+          success: false,
+          message: "No active college selected",
+        });
+      }
+
+      const [users] = await db.execute(
+        `
+        SELECT
+          id,
+          name,
+          email,
+          mobile
+        FROM users
+        WHERE id = ?
+        `,
+        [userId]
+      );
+
+      if (users.length === 0) {
+        return res.status(401).json({
+          success: false,
+          message: "Authenticated user not found",
+        });
+      }
+
+      const user = users[0];
+
+      const imageUrl = req.file
+        ? `/uploads/resources/${req.file.filename}`
+        : null;
+
+      console.log("RESOURCE IMAGE:", imageUrl);
+
+      const [result] = await db.execute(
+        `
+        INSERT INTO resources
+        (
+          user_id,
+          title,
+          description,
+          category,
+          location,
+          availability,
+          borrowing_fee,
+          college_id,
+          image_url
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          user.id,
+          title.trim(),
+          description || "",
+          category.trim(),
+          location ? location.trim() : null,
+          availability || "Available",
+          Number(borrowingFee || 0),
+          collegeId,
+          imageUrl,
+        ]
+      );
+
+      const [newResource] = await db.execute(
+        `
+        SELECT
+          r.id,
+          r.user_id,
+          r.title,
+          r.description,
+          r.category,
+          r.location,
+          r.availability,
+          r.borrowing_fee,
+          r.college_id,
+          r.image_url,
+          r.created_at,
+          r.borrowed_by,
+          r.borrowed_at,
+
+          owner.name AS postedBy,
+          owner.email AS ownerEmail,
+          owner.mobile AS ownerMobile,
+
+          borrower.name AS borrowedBy,
+          borrower.email AS borrowerEmail,
+          borrower.mobile AS borrowerMobile
+
+        FROM resources r
+
+        JOIN users owner
+          ON r.user_id = owner.id
+
+        LEFT JOIN users borrower
+          ON r.borrowed_by = borrower.id
+
+        WHERE r.id = ?
+          AND r.college_id = ?
+        `,
+        [result.insertId, collegeId]
+      );
+
+      res.status(201).json({
+        success: true,
+        message: "Resource created successfully",
+        resource: newResource[0],
+      });
+    } catch (error) {
+      console.error(
+        "Create resource error:",
+        error
+      );
+
+      res.status(500).json({
         success: false,
-        message: "Title and category are required",
+        message:
+          "Server error while creating resource",
       });
     }
-
-    const userId = req.user.userId;
-
-    const [users] = await db.execute(
-      "SELECT id, name, email, college_id FROM users WHERE id = ?",
-      [userId]
-    );
-
-    if (users.length === 0) {
-      return res.status(401).json({
-        success: false,
-        message: "Authenticated user not found",
-      });
-    }
-
-    const user = users[0];
-
-    if (!user.college_id) {
-      return res.status(403).json({
-        success: false,
-        message: "User is not associated with a college",
-      });
-    }
-
-    const collegeId = user.college_id;
-
-    // Save image path
-    const imageUrl = req.file
-      ? `/uploads/resources/${req.file.filename}`
-      : null;
-
-    console.log("RESOURCE IMAGE:", imageUrl);
-
-    const [result] = await db.execute(
-      `INSERT INTO resources
-       (
-         user_id,
-         title,
-         description,
-         category,
-         location,
-         availability,
-         borrowing_fee,
-         college_id,
-         image_url
-       )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        user.id,
-        title.trim(),
-        description || "",
-        category.trim(),
-        location ? location.trim() : null,
-
-        // Every newly posted resource starts as Available
-        availability || "Available",
-
-        Number(borrowingFee || 0),
-        collegeId,
-        imageUrl,
-      ]
-    );
-
-    const [newResource] = await db.execute(
-      `SELECT
-        r.id,
-        r.user_id,
-        r.title,
-        r.description,
-        r.category,
-        r.location,
-        r.availability,
-        r.borrowing_fee,
-        r.college_id,
-        r.image_url,
-        r.created_at,
-        r.borrowed_by,
-        r.borrowed_at,
-
-        owner.name AS postedBy,
-        owner.email AS ownerEmail,
-        owner.mobile AS ownerMobile,
-
-        borrower.name AS borrowedBy,
-        borrower.email AS borrowerEmail,
-        borrower.mobile AS borrowerMobile
-
-       FROM resources r
-
-       JOIN users owner
-         ON r.user_id = owner.id
-
-       LEFT JOIN users borrower
-         ON r.borrowed_by = borrower.id
-
-       WHERE r.id = ?`,
-      [result.insertId]
-    );
-
-    res.status(201).json({
-      success: true,
-      message: "Resource created successfully",
-      resource: newResource[0],
-    });
-  } catch (error) {
-    console.error("Create resource error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Server error while creating resource",
-    });
   }
-});
+);
 
 // =====================================================
 // BORROW RESOURCE
-// Logged-in student borrows another student's resource
+// ONLY ACTIVE COLLEGE
 // =====================================================
 
 router.post("/:id/borrow", async (req, res) => {
@@ -734,10 +773,21 @@ router.post("/:id/borrow", async (req, res) => {
     }
 
     const borrowerId = req.user.userId;
+    const collegeId = getActiveCollegeId(req);
 
-    // Get resource and owner
+    if (!collegeId) {
+      return res.status(403).json({
+        success: false,
+        message: "No active college selected",
+      });
+    }
+
+    // IMPORTANT:
+    // The resource MUST belong to the active college.
+    // We check college_id directly in SQL.
     const [resources] = await db.execute(
-      `SELECT
+      `
+      SELECT
         r.id,
         r.user_id,
         r.title,
@@ -750,27 +800,35 @@ router.post("/:id/borrow", async (req, res) => {
         owner.email AS ownerEmail,
         owner.mobile AS ownerMobile
 
-       FROM resources r
+      FROM resources r
 
-       JOIN users owner
-         ON r.user_id = owner.id
+      JOIN users owner
+        ON r.user_id = owner.id
 
-       WHERE r.id = ?`,
-      [resourceId]
+      WHERE r.id = ?
+        AND r.college_id = ?
+      `,
+      [resourceId, collegeId]
     );
 
     if (resources.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Resource not found",
+        message: "Resource not found in your college",
       });
     }
 
     const resource = resources[0];
 
-    // Make sure borrower belongs to same college
     const [borrowerUsers] = await db.execute(
-      "SELECT id, name, email, college_id FROM users WHERE id = ?",
+      `
+      SELECT
+        id,
+        name,
+        email
+      FROM users
+      WHERE id = ?
+      `,
       [borrowerId]
     );
 
@@ -781,41 +839,38 @@ router.post("/:id/borrow", async (req, res) => {
       });
     }
 
-    const borrower = borrowerUsers[0];
-
+    // Owner cannot borrow their own resource
     if (
-      !borrower.college_id ||
-      Number(borrower.college_id) !==
-        Number(resource.college_id)
+      Number(resource.user_id) ===
+      Number(borrowerId)
     ) {
       return res.status(403).json({
         success: false,
         message:
-          "You can only borrow resources from your college",
+          "You cannot borrow your own resource",
       });
     }
 
-    // Owner cannot borrow their own resource
-    if (Number(resource.user_id) === Number(borrowerId)) {
-      return res.status(403).json({
-        success: false,
-        message: "You cannot borrow your own resource",
-      });
-    }
-
-    // Only Available resources can be borrowed.
-    // Returned resources cannot be borrowed until the owner
-    // creates a new post.
     const [result] = await db.execute(
-      `UPDATE resources
-       SET
-         availability = 'Borrowed',
-         borrowed_by = ?,
-         borrowed_at = NOW()
-       WHERE id = ?
-         AND LOWER(COALESCE(availability, '')) = 'available'
-         AND borrowed_by IS NULL`,
-      [borrowerId, resourceId]
+      `
+      UPDATE resources
+      SET
+        availability = 'Borrowed',
+        borrowed_by = ?,
+        borrowed_at = NOW()
+
+      WHERE id = ?
+        AND college_id = ?
+        AND LOWER(
+          COALESCE(availability, '')
+        ) = 'available'
+        AND borrowed_by IS NULL
+      `,
+      [
+        borrowerId,
+        resourceId,
+        collegeId,
+      ]
     );
 
     if (result.affectedRows === 0) {
@@ -826,42 +881,45 @@ router.post("/:id/borrow", async (req, res) => {
       });
     }
 
-    // Get complete resource information
-    const [borrowedResource] = await db.execute(
-      `SELECT
-        r.id,
-        r.user_id,
-        r.title,
-        r.description,
-        r.category,
-        r.location,
-        r.availability,
-        r.borrowing_fee,
-        r.college_id,
-        r.image_url,
-        r.created_at,
-        r.borrowed_by,
-        r.borrowed_at,
+    const [borrowedResource] =
+      await db.execute(
+        `
+        SELECT
+          r.id,
+          r.user_id,
+          r.title,
+          r.description,
+          r.category,
+          r.location,
+          r.availability,
+          r.borrowing_fee,
+          r.college_id,
+          r.image_url,
+          r.created_at,
+          r.borrowed_by,
+          r.borrowed_at,
 
-        owner.name AS postedBy,
-        owner.email AS ownerEmail,
-        owner.mobile AS ownerMobile,
+          owner.name AS postedBy,
+          owner.email AS ownerEmail,
+          owner.mobile AS ownerMobile,
 
-        borrower.name AS borrowedBy,
-        borrower.email AS borrowerEmail,
-        borrower.mobile AS borrowerMobile
+          borrower.name AS borrowedBy,
+          borrower.email AS borrowerEmail,
+          borrower.mobile AS borrowerMobile
 
-       FROM resources r
+        FROM resources r
 
-       JOIN users owner
-         ON r.user_id = owner.id
+        JOIN users owner
+          ON r.user_id = owner.id
 
-       LEFT JOIN users borrower
-         ON r.borrowed_by = borrower.id
+        LEFT JOIN users borrower
+          ON r.borrowed_by = borrower.id
 
-       WHERE r.id = ?`,
-      [resourceId]
-    );
+        WHERE r.id = ?
+          AND r.college_id = ?
+        `,
+        [resourceId, collegeId]
+      );
 
     res.json({
       success: true,
@@ -869,28 +927,22 @@ router.post("/:id/borrow", async (req, res) => {
       resource: borrowedResource[0],
     });
   } catch (error) {
-    console.error("Borrow resource error:", error);
+    console.error(
+      "Borrow resource error:",
+      error
+    );
 
     res.status(500).json({
       success: false,
-      message: "Server error while borrowing resource",
+      message:
+        "Server error while borrowing resource",
     });
   }
 });
 
 // =====================================================
 // RETURN RESOURCE
-//
-// Borrower returns the resource.
-//
-// IMPORTANT:
-// Borrowed -> Returned
-//
-// NOT:
-// Borrowed -> Available
-//
-// The owner must create a NEW POST if they want to make
-// the same item available for borrowing again.
+// ONLY ACTIVE COLLEGE
 // =====================================================
 
 router.put("/:id/return", async (req, res) => {
@@ -905,26 +957,41 @@ router.put("/:id/return", async (req, res) => {
     }
 
     const borrowerId = req.user.userId;
+    const collegeId = getActiveCollegeId(req);
 
-    // Make sure this user is the current borrower
+    if (!collegeId) {
+      return res.status(403).json({
+        success: false,
+        message: "No active college selected",
+      });
+    }
+
+    // IMPORTANT:
+    // Resource must belong to ACTIVE COLLEGE.
     const [resources] = await db.execute(
       `
       SELECT
         id,
         user_id AS owner_id,
         borrowed_by,
-        availability
+        availability,
+        college_id
+
       FROM resources
+
       WHERE id = ?
+        AND college_id = ?
+
       LIMIT 1
       `,
-      [resourceId]
+      [resourceId, collegeId]
     );
 
     if (resources.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Resource not found",
+        message:
+          "Resource not found in your college",
       });
     }
 
@@ -952,28 +1019,28 @@ router.put("/:id/return", async (req, res) => {
       });
     }
 
-    // =================================================
-    // RETURN THE RESOURCE
-    //
-    // IMPORTANT:
-    // availability = Returned
-    //
-    // This prevents the old listing from automatically
-    // appearing on the marketplace again.
-    // =================================================
-
+    // Borrowed -> Returned
     const [result] = await db.execute(
       `
       UPDATE resources
+
       SET
         availability = 'Returned',
         borrowed_by = NULL,
         borrowed_at = NULL
+
       WHERE id = ?
+        AND college_id = ?
         AND borrowed_by = ?
-        AND LOWER(COALESCE(availability, '')) = 'borrowed'
+        AND LOWER(
+          COALESCE(availability, '')
+        ) = 'borrowed'
       `,
-      [resourceId, borrowerId]
+      [
+        resourceId,
+        collegeId,
+        borrowerId,
+      ]
     );
 
     if (result.affectedRows === 0) {
@@ -986,7 +1053,9 @@ router.put("/:id/return", async (req, res) => {
 
     res.json({
       success: true,
-      message: "Resource returned successfully",
+      message:
+        "Resource returned successfully",
+
       resource: {
         id: resourceId,
         status: "Returned",
@@ -1011,7 +1080,7 @@ router.put("/:id/return", async (req, res) => {
 
 // =====================================================
 // UPDATE RESOURCE
-// User can update only their own resource
+// ONLY OWNER + ACTIVE COLLEGE
 // =====================================================
 
 router.put("/:id", async (req, res) => {
@@ -1035,21 +1104,35 @@ router.put("/:id", async (req, res) => {
     if (!title || !category) {
       return res.status(400).json({
         success: false,
-        message: "Title and category are required",
+        message:
+          "Title and category are required",
       });
     }
 
     const userId = req.user.userId;
+    const collegeId = getActiveCollegeId(req);
+
+    if (!collegeId) {
+      return res.status(403).json({
+        success: false,
+        message: "No active college selected",
+      });
+    }
 
     const [result] = await db.execute(
-      `UPDATE resources
-       SET
-         title = ?,
-         description = ?,
-         category = ?,
-         availability = ?
-       WHERE id = ?
-         AND user_id = ?`,
+      `
+      UPDATE resources
+
+      SET
+        title = ?,
+        description = ?,
+        category = ?,
+        availability = ?
+
+      WHERE id = ?
+        AND user_id = ?
+        AND college_id = ?
+      `,
       [
         title.trim(),
         description || "",
@@ -1057,6 +1140,7 @@ router.put("/:id", async (req, res) => {
         availability || null,
         id,
         userId,
+        collegeId,
       ]
     );
 
@@ -1070,10 +1154,14 @@ router.put("/:id", async (req, res) => {
 
     res.json({
       success: true,
-      message: "Resource updated successfully",
+      message:
+        "Resource updated successfully",
     });
   } catch (error) {
-    console.error("Update resource error:", error);
+    console.error(
+      "Update resource error:",
+      error
+    );
 
     res.status(500).json({
       success: false,
@@ -1085,7 +1173,7 @@ router.put("/:id", async (req, res) => {
 
 // =====================================================
 // DELETE RESOURCE
-// User can delete only their own resource
+// ONLY OWNER + ACTIVE COLLEGE
 // =====================================================
 
 router.delete("/:id", async (req, res) => {
@@ -1100,12 +1188,28 @@ router.delete("/:id", async (req, res) => {
     }
 
     const userId = req.user.userId;
+    const collegeId = getActiveCollegeId(req);
+
+    if (!collegeId) {
+      return res.status(403).json({
+        success: false,
+        message: "No active college selected",
+      });
+    }
 
     const [result] = await db.execute(
-      `DELETE FROM resources
-       WHERE id = ?
-         AND user_id = ?`,
-      [id, userId]
+      `
+      DELETE FROM resources
+
+      WHERE id = ?
+        AND user_id = ?
+        AND college_id = ?
+      `,
+      [
+        id,
+        userId,
+        collegeId,
+      ]
     );
 
     if (result.affectedRows === 0) {
@@ -1118,10 +1222,14 @@ router.delete("/:id", async (req, res) => {
 
     res.json({
       success: true,
-      message: "Resource deleted successfully",
+      message:
+        "Resource deleted successfully",
     });
   } catch (error) {
-    console.error("Delete resource error:", error);
+    console.error(
+      "Delete resource error:",
+      error
+    );
 
     res.status(500).json({
       success: false,

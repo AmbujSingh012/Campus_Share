@@ -181,130 +181,6 @@ resource_ids and task_ids must contain ONLY IDs from the supplied data.
   };
 };
 
-function normalizeSearchText(value) {
-  return String(value || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function getSearchTokens(value) {
-  const stopWords = new Set([
-    "i", "want", "need", "looking", "for", "a", "an", "the",
-    "to", "borrow", "lend", "rent", "please", "can", "you",
-    "me", "my", "is", "are", "do", "two", "one", "day", "days"
-  ]);
-
-  return normalizeSearchText(value)
-    .split(" ")
-    .filter((word) => word.length >= 3 && !stopWords.has(word));
-}
-
-function hasStrictRelevance(searchText, item) {
-  const query = normalizeSearchText(searchText);
-  const tokens = getSearchTokens(searchText);
-
-  const searchableText = normalizeSearchText([
-    item.title,
-    item.description,
-    item.category,
-    item.location
-  ].filter(Boolean).join(" "));
-
-  if (!searchableText || tokens.length === 0) {
-    return false;
-  }
-
-  if (query.length >= 4 && searchableText.includes(query)) {
-    return true;
-  }
-
-  const synonymGroups = [
-    ["laptop", "notebook", "computer"],
-    ["notes", "note", "study", "material"],
-    ["charger", "charging", "adapter"],
-    ["cycle", "bicycle", "bike"],
-    ["coat", "labcoat", "lab"],
-    ["print", "printing", "photocopy"],
-    ["teach", "teaching", "tutor", "tutoring"],
-    ["carry", "deliver", "delivery"]
-  ];
-
-  return tokens.some((token) => {
-    if (searchableText.includes(token)) {
-      return true;
-    }
-
-    return synonymGroups.some(
-      (group) =>
-        group.includes(token) &&
-        group.some((word) => searchableText.includes(word))
-    );
-  });
-}
-
-function detectSearchIntent(searchText) {
-  const query = normalizeSearchText(searchText);
-
-  const taskPatterns = [
-    /someone needs/,
-    /someone wants/,
-    /someone who needs/,
-    /someone who wants/,
-    /someone who is looking/,
-    /someone is looking/,
-    /somebody needs/,
-    /somebody wants/,
-    /somebody who needs/,
-    /somebody who wants/,
-    /somebody who is looking/,
-    /somebody is looking/,
-    /anyone needs/,
-    /anyone wants/,
-    /anyone to/,
-    /can someone/,
-    /can anybody/,
-    /need someone/,
-    /want someone/,
-    /looking for someone/,
-    /find someone/,
-    /help me/,
-    /help with/,
-    /teach me/,
-    /teach .*python/,
-    /tutor/,
-    /tutoring/,
-    /do it for me/,
-    /deliver/,
-    /print my/,
-    /photocopy my/,
-    /carry my/
-  ];
-
-  if (taskPatterns.some((pattern) => pattern.test(query))) {
-    return "task";
-  }
-
-  return "resource";
-}
-
-function filterStrictlyRelevant(searchText, items, itemType) {
-  const intent = detectSearchIntent(searchText);
-
-  if (itemType === "task" && intent !== "task") {
-    return [];
-  }
-
-  if (itemType === "resource" && intent !== "resource") {
-    return [];
-  }
-
-  return items.filter((item) =>
-    hasStrictRelevance(searchText, item)
-  );
-}
-
 // POST /api/helper
 router.post("/", authenticateToken, async (req, res) => {
   try {
@@ -399,25 +275,21 @@ router.post("/", authenticateToken, async (req, res) => {
       tasks
     );
 
-    const searchIntent = detectSearchIntent(searchText);
+    const selectedResourceIds = new Set(
+      aiResult.resourceIds.map(Number)
+    );
 
-    const matchedResources =
-      searchIntent === "resource"
-        ? filterStrictlyRelevant(
-            searchText,
-            resources,
-            "resource"
-          )
-        : [];
+    const selectedTaskIds = new Set(
+      aiResult.taskIds.map(Number)
+    );
 
-    const matchedTasks =
-      searchIntent === "task"
-        ? filterStrictlyRelevant(
-            searchText,
-            tasks,
-            "task"
-          )
-        : [];
+    const matchedResources = resources.filter((resource) =>
+      selectedResourceIds.has(Number(resource.id))
+    );
+
+    const matchedTasks = tasks.filter((task) =>
+      selectedTaskIds.has(Number(task.id))
+    );
 
     const hasMatches =
       matchedResources.length > 0 ||

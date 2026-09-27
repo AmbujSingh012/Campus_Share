@@ -1,21 +1,19 @@
 const express = require("express");
 const algosdk = require("algosdk");
-
 const db = require("../db");
 const authenticateToken = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
 // =====================================================
-// ALGOrAND TESTNET CONFIGURATION
+// ALGORAND TESTNET CONFIGURATION
 // =====================================================
 
 const ALGOD_SERVER = "https://testnet-api.algonode.cloud";
 const ALGOD_PORT = "";
 const ALGOD_TOKEN = "";
 
-const INDEXER_SERVER =
-  "https://testnet-idx.algonode.cloud";
+const INDEXER_SERVER = "https://testnet-idx.algonode.cloud";
 
 const USDC_ASSET_ID = 10458941;
 const USDC_DECIMALS = 6;
@@ -33,7 +31,21 @@ const algodClient = new algosdk.Algodv2(
 router.use(authenticateToken);
 
 // =====================================================
-// ALGOrAND ADDRESS NORMALIZATION
+// ACTIVE COLLEGE HELPER
+// =====================================================
+
+function getActiveCollegeId(req) {
+  const collegeId = Number(req.user.collegeId);
+
+  if (!Number.isInteger(collegeId) || collegeId <= 0) {
+    return null;
+  }
+
+  return collegeId;
+}
+
+// =====================================================
+// ALGORAND ADDRESS NORMALIZATION
 // =====================================================
 
 function normalizeAlgorandAddress(value) {
@@ -70,14 +82,13 @@ function normalizeAlgorandAddress(value) {
 }
 
 // =====================================================
-// GET CONFIRMED ALGOrAND TRANSACTION
+// GET CONFIRMED ALGORAND TRANSACTION
 //
 // Verification order:
 //
 // 1. Algod pendingTransactionInformation
-// 2. Algod confirmation if transaction is still available
-// 3. Indexer direct transaction lookup
-// 4. Indexer transaction search
+// 2. Indexer direct transaction lookup
+// 3. Indexer transaction search
 //
 // IMPORTANT:
 // We NEVER trust the frontend alone.
@@ -104,16 +115,13 @@ async function getConfirmedTransaction(
   console.log(
     "================================================="
   );
-
   console.log(
-    "VERIFYING ALGOrAND TRANSACTION"
+    "VERIFYING ALGORAND TRANSACTION"
   );
-
   console.log(
     "Transaction ID:",
     txId
   );
-
   console.log(
     "================================================="
   );
@@ -170,22 +178,14 @@ async function getConfirmedTransaction(
 
             txn: {
               type: "axfer",
-
-              snd:
-                pendingInfo.sender,
-
-              arcv:
-                assetTransfer.receiver,
-
-              xaid:
-                Number(
-                  assetTransfer["asset-id"]
-                ),
-
-              aamt:
-                Number(
-                  assetTransfer.amount
-                ),
+              snd: pendingInfo.sender,
+              arcv: assetTransfer.receiver,
+              xaid: Number(
+                assetTransfer["asset-id"]
+              ),
+              aamt: Number(
+                assetTransfer.amount
+              ),
             },
 
             source: "algod",
@@ -209,13 +209,6 @@ async function getConfirmedTransaction(
         "Algod lookup failed:",
         error.message
       );
-
-      /*
-       * A 400/404 here can be normal when a transaction
-       * has already left the pending pool.
-       *
-       * We therefore continue to the Indexer.
-       */
 
       break;
     }
@@ -291,9 +284,7 @@ async function getConfirmedTransaction(
             confirmedRound
           );
 
-          if (
-            confirmedRound > 0
-          ) {
+          if (confirmedRound > 0) {
             const assetTransfer =
               transaction[
                 "asset-transfer-transaction"
@@ -310,20 +301,16 @@ async function getConfirmedTransaction(
 
                 txn: {
                   type: "axfer",
-
                   snd:
                     transaction.sender,
-
                   arcv:
                     assetTransfer.receiver,
-
                   xaid:
                     Number(
                       assetTransfer[
                         "asset-id"
                       ]
                     ),
-
                   aamt:
                     Number(
                       assetTransfer.amount
@@ -349,9 +336,7 @@ async function getConfirmedTransaction(
                   null,
 
                 arcv: null,
-
                 xaid: 0,
-
                 aamt: 0,
               },
 
@@ -378,10 +363,6 @@ async function getConfirmedTransaction(
 
   // -------------------------------------------------
   // METHOD 3: INDEXER TRANSACTION SEARCH
-  // -------------------------------------------------
-  //
-  // Some Indexer configurations may not immediately
-  // return /transactions/{txid}, so search by txid.
   // -------------------------------------------------
 
   for (
@@ -428,8 +409,7 @@ async function getConfirmedTransaction(
 
       const transaction =
         transactions.find(
-          (item) =>
-            item.id === txId
+          (item) => item.id === txId
         );
 
       if (transaction) {
@@ -440,9 +420,7 @@ async function getConfirmedTransaction(
             ] || 0
           );
 
-        if (
-          confirmedRound > 0
-        ) {
+        if (confirmedRound > 0) {
           const assetTransfer =
             transaction[
               "asset-transfer-transaction"
@@ -459,27 +437,24 @@ async function getConfirmedTransaction(
 
               txn: {
                 type: "axfer",
-
                 snd:
                   transaction.sender,
-
                 arcv:
                   assetTransfer.receiver,
-
                 xaid:
                   Number(
                     assetTransfer[
                       "asset-id"
                     ]
                   ),
-
                 aamt:
                   Number(
                     assetTransfer.amount
                   ),
               },
 
-              source: "indexer-search",
+              source:
+                "indexer-search",
             };
           }
         }
@@ -508,34 +483,18 @@ async function getConfirmedTransaction(
 
 // =====================================================
 // GET ALL TASKS
-// Only tasks from logged-in user's college
+// Only tasks from active college
 // =====================================================
 
 router.get("/", async (req, res) => {
   try {
     const userId = req.user.userId;
-
-    const [users] = await db.execute(
-      "SELECT college_id FROM users WHERE id = ?",
-      [userId]
-    );
-
-    if (users.length === 0) {
-      return res.status(401).json({
-        success: false,
-        message:
-          "Authenticated user not found",
-      });
-    }
-
-    const collegeId =
-      users[0].college_id;
+    const collegeId = getActiveCollegeId(req);
 
     if (!collegeId) {
       return res.status(403).json({
         success: false,
-        message:
-          "User is not associated with a college",
+        message: "No active college selected",
       });
     }
 
@@ -554,7 +513,6 @@ router.get("/", async (req, res) => {
         t.deadline,
         t.college_id,
         t.created_at,
-
         u.name AS postedBy,
 
         my_a.id AS my_acceptance_id,
@@ -628,6 +586,7 @@ router.get("/", async (req, res) => {
         )
 
       WHERE t.college_id = ?
+        AND LOWER(t.status) <> 'completed'
 
       ORDER BY t.created_at DESC
       `,
@@ -655,6 +614,7 @@ router.get("/", async (req, res) => {
 
 // =====================================================
 // GET TRANSACTION HISTORY
+// Only transactions related to active college
 // =====================================================
 
 router.get(
@@ -662,87 +622,123 @@ router.get(
   async (req, res) => {
     try {
       const userId = req.user.userId;
+      const collegeId = getActiveCollegeId(req);
+
+      if (!collegeId) {
+        return res.status(403).json({
+          success: false,
+          message: "No active college selected",
+        });
+      }
 
       console.log(
         "TRANSACTION HISTORY USER:",
         userId
       );
 
-      const [transactions] = await db.execute(
-        `
-        SELECT *
-        FROM (
-          SELECT
-            CONCAT('task-', p.id) AS id,
-            'task' AS transaction_type,
-            p.task_id,
-            NULL AS resource_id,
-            a.helper_id,
-            p.payer_id,
-            p.receiver_id,
-            t.status AS status,
-            a.accepted_at,
-            p.status AS payment_status,
-            p.transaction_id AS payment_transaction_id,
-            p.payment_provider AS payment_network,
-            p.amount AS payment_amount,
-            t.reward,
-            p.paid_at,
-            t.title AS task_title,
-            owner.name AS task_owner
-          FROM payments p
-          JOIN tasks t
-            ON p.task_id = t.id
-          JOIN users owner
-            ON t.user_id = owner.id
-          LEFT JOIN acceptances a
-            ON a.task_id = t.id
-           AND a.status = 'accepted'
-          WHERE p.task_id IS NOT NULL
-            AND (
-              p.payer_id = ?
-              OR p.receiver_id = ?
-            )
+      const [transactions] =
+        await db.execute(
+          `
+          SELECT *
+          FROM (
+            SELECT
+              CONCAT('task-', p.id) AS id,
+              'task' AS transaction_type,
+              p.task_id,
+              NULL AS resource_id,
+              a.helper_id,
+              p.payer_id,
+              p.receiver_id,
+              t.status AS status,
+              a.accepted_at,
+              p.status AS payment_status,
+              p.transaction_id AS payment_transaction_id,
+              p.payment_provider AS payment_network,
+              p.amount AS payment_amount,
+              t.reward,
+              p.paid_at,
+              t.title AS task_title,
+              owner.name AS task_owner
 
-          UNION ALL
+            FROM payments p
 
-          SELECT
-            CONCAT('resource-', p.id) AS id,
-            'resource' AS transaction_type,
-            NULL AS task_id,
-            p.resource_id,
-            r.borrowed_by AS helper_id,
-            p.payer_id,
-            p.receiver_id,
-            CASE
-              WHEN LOWER(COALESCE(r.availability, '')) = 'borrowed'
-                THEN 'borrowed'
-              ELSE r.availability
-            END AS status,
-            r.borrowed_at AS accepted_at,
-            p.status AS payment_status,
-            p.transaction_id AS payment_transaction_id,
-            p.payment_provider AS payment_network,
-            p.amount AS payment_amount,
-            p.amount AS reward,
-            p.paid_at,
-            r.title AS task_title,
-            owner.name AS task_owner
-          FROM payments p
-          JOIN resources r
-            ON p.resource_id = r.id
-          JOIN users owner
-            ON r.user_id = owner.id
-          WHERE p.resource_id IS NOT NULL
-            AND (
-              p.payer_id = ?
-              OR p.receiver_id = ?
-            )
-        ) AS transaction_history
-        ORDER BY COALESCE(paid_at, accepted_at) DESC
-        `,
-        [userId, userId, userId, userId]
-      );
+            JOIN tasks t
+              ON p.task_id = t.id
+
+            JOIN users owner
+              ON t.user_id = owner.id
+
+            LEFT JOIN acceptances a
+              ON a.task_id = t.id
+              AND a.status = 'accepted'
+
+            WHERE p.task_id IS NOT NULL
+              AND t.college_id = ?
+              AND (
+                p.payer_id = ?
+                OR p.receiver_id = ?
+              )
+
+            UNION ALL
+
+            SELECT
+              CONCAT('resource-', p.id) AS id,
+              'resource' AS transaction_type,
+              NULL AS task_id,
+              p.resource_id,
+              r.borrowed_by AS helper_id,
+              p.payer_id,
+              p.receiver_id,
+              CASE
+                WHEN LOWER(
+                  COALESCE(
+                    r.availability,
+                    ''
+                  )
+                ) = 'borrowed'
+                  THEN 'borrowed'
+                ELSE r.availability
+              END AS status,
+              r.borrowed_at AS accepted_at,
+              p.status AS payment_status,
+              p.transaction_id AS payment_transaction_id,
+              p.payment_provider AS payment_network,
+              p.amount AS payment_amount,
+              p.amount AS reward,
+              p.paid_at,
+              r.title AS task_title,
+              owner.name AS task_owner
+
+            FROM payments p
+
+            JOIN resources r
+              ON p.resource_id = r.id
+
+            JOIN users owner
+              ON r.user_id = owner.id
+
+            WHERE p.resource_id IS NOT NULL
+              AND r.college_id = ?
+              AND (
+                p.payer_id = ?
+                OR p.receiver_id = ?
+              )
+          ) AS transaction_history
+
+          ORDER BY COALESCE(
+            paid_at,
+            accepted_at
+          ) DESC
+          `,
+          [
+            collegeId,
+            userId,
+            userId,
+            collegeId,
+            userId,
+            userId,
+          ]
+        );
 
       console.log(
         "TRANSACTIONS FOUND:",
@@ -771,6 +767,7 @@ router.get(
 
 // =====================================================
 // GET CONNECTION DETAILS
+// Only active college
 // =====================================================
 
 router.get(
@@ -782,6 +779,16 @@ router.get(
 
       const userId =
         req.user.userId;
+
+      const collegeId =
+        getActiveCollegeId(req);
+
+      if (!collegeId) {
+        return res.status(403).json({
+          success: false,
+          message: "No active college selected",
+        });
+      }
 
       if (!Number.isInteger(taskId)) {
         return res.status(400).json({
@@ -808,16 +815,16 @@ router.get(
             owner.id AS owner_id,
             owner.name AS owner_name,
             owner.email AS owner_email,
-owner.mobile AS owner_mobile,
-owner.wallet_address
-  AS owner_wallet_address,
+            owner.mobile AS owner_mobile,
+            owner.wallet_address
+              AS owner_wallet_address,
 
-helper.id AS helper_id,
-helper.name AS helper_name,
-helper.email AS helper_email,
-helper.mobile AS helper_mobile,
-helper.wallet_address
-  AS helper_wallet_address,
+            helper.id AS helper_id,
+            helper.name AS helper_name,
+            helper.email AS helper_email,
+            helper.mobile AS helper_mobile,
+            helper.wallet_address
+              AS helper_wallet_address,
 
             a.id AS acceptance_id,
             a.status AS acceptance_status,
@@ -827,7 +834,8 @@ helper.wallet_address
             p.status AS payment_status,
             p.payment_method,
             p.payment_provider,
-            p.transaction_id AS payment_transaction_id,
+            p.transaction_id
+              AS payment_transaction_id,
             p.razorpay_order_id,
             p.razorpay_payment_id,
             p.upi_id AS payment_upi_id,
@@ -844,7 +852,14 @@ helper.wallet_address
             receiver.name AS receiver_name,
             receiver.email AS receiver_email,
             receiver.mobile AS receiver_mobile,
-            receiver.upi_id AS receiver_upi_id
+            receiver.upi_id AS receiver_upi_id,
+
+            EXISTS (
+              SELECT 1
+              FROM ratings r
+              WHERE r.task_id = t.id
+                AND r.rater_id = ?
+            ) AS current_user_already_rated
 
           FROM tasks t
 
@@ -863,7 +878,10 @@ helper.wallet_address
               SELECT MAX(p2.id)
               FROM payments p2
               WHERE p2.task_id = t.id
-                AND p2.status IN ('pending', 'paid')
+                AND p2.status IN (
+                  'pending',
+                  'paid'
+                )
             )
 
           LEFT JOIN users payer
@@ -873,17 +891,19 @@ helper.wallet_address
             ON receiver.id = p.receiver_id
 
           WHERE t.id = ?
+            AND t.college_id = ?
             AND (
               t.user_id = ?
               OR a.helper_id = ?
             )
 
           ORDER BY a.id DESC
-
           LIMIT 1
           `,
           [
+            userId,
             taskId,
+            collegeId,
             userId,
             userId,
           ]
@@ -917,22 +937,24 @@ helper.wallet_address
         },
 
         owner: {
-  id: data.owner_id,
-  name: data.owner_name,
-  email: data.owner_email,
-  mobile: data.owner_mobile || null,
-  wallet_address:
-    data.owner_wallet_address,
-},
+          id: data.owner_id,
+          name: data.owner_name,
+          email: data.owner_email,
+          mobile:
+            data.owner_mobile || null,
+          wallet_address:
+            data.owner_wallet_address,
+        },
 
         helper: {
-  id: data.helper_id,
-  name: data.helper_name,
-  email: data.helper_email,
-  mobile: data.helper_mobile || null,
-  wallet_address:
-    data.helper_wallet_address,
-},
+          id: data.helper_id,
+          name: data.helper_name,
+          email: data.helper_email,
+          mobile:
+            data.helper_mobile || null,
+          wallet_address:
+            data.helper_wallet_address,
+        },
 
         acceptance: {
           id: data.acceptance_id,
@@ -942,42 +964,75 @@ helper.wallet_address
             data.accepted_at,
         },
 
+        rating: {
+          current_user_already_rated:
+            Number(data.current_user_already_rated || 0) === 1,
+        },
+
         payment: {
-          id: data.payment_id || null,
+          id:
+            data.payment_id || null,
+
           status:
-            data.payment_status || "pending",
+            data.payment_status ||
+            "pending",
+
           payment_method:
             data.payment_method || null,
+
           payment_provider:
             data.payment_provider || null,
+
           transaction_id:
-            data.payment_transaction_id || null,
+            data.payment_transaction_id ||
+            null,
+
           razorpay_order_id:
-            data.razorpay_order_id || null,
+            data.razorpay_order_id ||
+            null,
+
           razorpay_payment_id:
-            data.razorpay_payment_id || null,
+            data.razorpay_payment_id ||
+            null,
+
           upi_id:
             data.payment_upi_id || null,
+
           amount:
             data.payment_amount !== null &&
             data.payment_amount !== undefined
-              ? Number(data.payment_amount)
+              ? Number(
+                  data.payment_amount
+                )
               : null,
+
           paid_at:
             data.payment_paid_at || null,
+
           payer: {
-            id: data.payer_id || null,
-            name: data.payer_name || null,
-            email: data.payer_email || null,
-            mobile: data.payer_mobile || null,
-            upi_id: data.payer_upi_id || null,
+            id:
+              data.payer_id || null,
+            name:
+              data.payer_name || null,
+            email:
+              data.payer_email || null,
+            mobile:
+              data.payer_mobile || null,
+            upi_id:
+              data.payer_upi_id || null,
           },
+
           receiver: {
-            id: data.receiver_id || null,
-            name: data.receiver_name || null,
-            email: data.receiver_email || null,
-            mobile: data.receiver_mobile || null,
-            upi_id: data.receiver_upi_id || null,
+            id:
+              data.receiver_id || null,
+            name:
+              data.receiver_name || null,
+            email:
+              data.receiver_email || null,
+            mobile:
+              data.receiver_mobile || null,
+            upi_id:
+              data.receiver_upi_id || null,
           },
         },
       });
@@ -998,125 +1053,26 @@ helper.wallet_address
 
 // =====================================================
 // MY TASKS
+// Only tasks created by current user
+// in active college
 // =====================================================
 
 router.get(
   "/my",
   async (req, res) => {
     try {
-      const userId = req.user.userId;
-
-      const [tasks] = await db.execute(
-        `
-        SELECT
-          t.id,
-          t.user_id,
-          t.title,
-          t.description,
-          t.category,
-          t.location,
-          t.meeting_time,
-          t.reward,
-          t.status,
-          t.deadline,
-          t.college_id,
-          t.created_at,
-          u.name AS postedBy,
-          a.id AS acceptance_id,
-          a.helper_id,
-          a.status AS acceptance_status,
-          a.payment_status,
-          a.payment_transaction_id,
-          a.payment_network,
-          a.payment_amount,
-          a.paid_at,
-          helper.name AS helper_name
-        FROM tasks t
-        JOIN users u
-          ON t.user_id = u.id
-        LEFT JOIN acceptances a
-          ON a.id = (
-            SELECT a2.id
-            FROM acceptances a2
-            WHERE a2.task_id = t.id
-            ORDER BY
-              CASE
-                WHEN a2.status = 'accepted' THEN 0
-                ELSE 1
-              END,
-              a2.id DESC
-            LIMIT 1
-          )
-        LEFT JOIN users helper
-          ON helper.id = a.helper_id
-        WHERE t.user_id = ?
-        ORDER BY t.created_at DESC
-        `,
-        [userId]
-      );
-
-      return res.json({
-        success: true,
-        tasks,
-      });
-    } catch (error) {
-      console.error("Get my tasks error:", error);
-
-      return res.status(500).json({
-        success: false,
-        message: "Server error while fetching your tasks",
-      });
-    }
-  }
-);
-
-
-// =====================================================
-// GET TASK BY ID
-// Only allow access to tasks from user's college
-// =====================================================
-
-router.get(
-  "/:id",
-  async (req, res) => {
-    try {
-      const id =
-        Number(req.params.id);
-
-      if (!Number.isInteger(id)) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Invalid task ID",
-        });
-      }
-
       const userId =
         req.user.userId;
 
-      const [users] =
-        await db.execute(
-          `
-          SELECT college_id
-          FROM users
-          WHERE id = ?
-          `,
-          [userId]
-        );
+      const collegeId =
+        getActiveCollegeId(req);
 
-      if (
-        users.length === 0 ||
-        !users[0].college_id
-      ) {
+      if (!collegeId) {
         return res.status(403).json({
           success: false,
-          message:
-            "User is not associated with a college",
+          message: "No active college selected",
         });
       }
-
-      const collegeId =
-        users[0].college_id;
 
       const [tasks] =
         await db.execute(
@@ -1134,7 +1090,133 @@ router.get(
             t.deadline,
             t.college_id,
             t.created_at,
+            u.name AS postedBy,
 
+            a.id AS acceptance_id,
+            a.helper_id,
+            a.status AS acceptance_status,
+            a.payment_status,
+            a.payment_transaction_id,
+            a.payment_network,
+            a.payment_amount,
+            a.paid_at,
+
+            helper.name AS helper_name,
+
+CASE
+  WHEN t.status = 'completed'
+       AND a.helper_id IS NOT NULL
+       AND EXISTS (
+         SELECT 1
+         FROM ratings r
+         WHERE r.task_id = t.id
+           AND r.rater_id = ?
+       )
+  THEN 1
+  ELSE 0
+END AS owner_already_rated
+
+          FROM tasks t
+
+          JOIN users u
+            ON t.user_id = u.id
+
+          LEFT JOIN acceptances a
+            ON a.id = (
+              SELECT a2.id
+              FROM acceptances a2
+              WHERE a2.task_id = t.id
+              ORDER BY
+                CASE
+                  WHEN a2.status = 'accepted'
+                    THEN 0
+                  ELSE 1
+                END,
+                a2.id DESC
+              LIMIT 1
+            )
+
+          LEFT JOIN users helper
+            ON helper.id = a.helper_id
+
+          WHERE t.user_id = ?
+            AND t.college_id = ?
+
+          ORDER BY t.created_at DESC
+          `,
+          [
+  userId,
+  userId,
+  collegeId,
+]
+        );
+
+      return res.json({
+        success: true,
+        tasks,
+      });
+    } catch (error) {
+      console.error(
+        "Get my tasks error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Server error while fetching your tasks",
+      });
+    }
+  }
+);
+
+// =====================================================
+// GET TASK BY ID
+// Only allow access to active college
+// =====================================================
+
+router.get(
+  "/:id",
+  async (req, res) => {
+    try {
+      const id =
+        Number(req.params.id);
+
+      if (!Number.isInteger(id)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid task ID",
+        });
+      }
+
+      const collegeId =
+        getActiveCollegeId(req);
+
+      if (!collegeId) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "No active college selected",
+        });
+      }
+
+      const [tasks] =
+        await db.execute(
+          `
+          SELECT
+            t.id,
+            t.user_id,
+            t.title,
+            t.description,
+            t.category,
+            t.location,
+            t.meeting_time,
+            t.reward,
+            t.status,
+            t.deadline,
+            t.college_id,
+            t.created_at,
             u.name AS postedBy
 
           FROM tasks t
@@ -1230,13 +1312,23 @@ router.post(
       const userId =
         req.user.userId;
 
+      const collegeId =
+        getActiveCollegeId(req);
+
+      if (!collegeId) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "No active college selected",
+        });
+      }
+
       const [users] =
         await db.execute(
           `
           SELECT
             id,
-            name,
-            college_id
+            name
           FROM users
           WHERE id = ?
           `,
@@ -1251,19 +1343,7 @@ router.post(
         });
       }
 
-      const user =
-        users[0];
-
-      if (!user.college_id) {
-        return res.status(403).json({
-          success: false,
-          message:
-            "User is not associated with a college",
-        });
-      }
-
-      const collegeId =
-        user.college_id;
+      const user = users[0];
 
       const [result] =
         await db.execute(
@@ -1281,6 +1361,7 @@ router.post(
             deadline,
             college_id
           )
+
           VALUES
           (?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)
           `,
@@ -1313,7 +1394,6 @@ router.post(
             t.deadline,
             t.college_id,
             t.created_at,
-
             u.name AS postedBy
 
           FROM tasks t
@@ -1322,8 +1402,12 @@ router.post(
             ON t.user_id = u.id
 
           WHERE t.id = ?
+            AND t.college_id = ?
           `,
-          [result.insertId]
+          [
+            result.insertId,
+            collegeId,
+          ]
         );
 
       res.status(201).json({
@@ -1372,14 +1456,24 @@ router.post(
       const helperId =
         req.user.userId;
 
+      const activeCollegeId =
+        getActiveCollegeId(req);
+
+      if (!activeCollegeId) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "No active college selected",
+        });
+      }
+
       await connection.beginTransaction();
 
       const [users] =
         await connection.execute(
           `
           SELECT
-            id,
-            college_id
+            id
           FROM users
           WHERE id = ?
           `,
@@ -1396,18 +1490,9 @@ router.post(
         });
       }
 
-      const helper =
-        users[0];
-
-      if (!helper.college_id) {
-        await connection.rollback();
-
-        return res.status(403).json({
-          success: false,
-          message:
-            "User is not associated with a college",
-        });
-      }
+      // IMPORTANT:
+      // Task is fetched only from active college.
+      // A task from another college is invisible here.
 
       const [tasks] =
         await connection.execute(
@@ -1415,9 +1500,13 @@ router.post(
           SELECT *
           FROM tasks
           WHERE id = ?
+            AND college_id = ?
           FOR UPDATE
           `,
-          [taskId]
+          [
+            taskId,
+            activeCollegeId,
+          ]
         );
 
       if (tasks.length === 0) {
@@ -1432,19 +1521,6 @@ router.post(
 
       const task =
         tasks[0];
-
-      if (
-        Number(task.college_id) !==
-        Number(helper.college_id)
-      ) {
-        await connection.rollback();
-
-        return res.status(403).json({
-          success: false,
-          message:
-            "You cannot accept a task from another college",
-        });
-      }
 
       if (
         task.status !== "open"
@@ -1509,6 +1585,7 @@ router.post(
             helper_id,
             status
           )
+
           VALUES
           (?, ?, 'accepted')
           `,
@@ -1523,8 +1600,12 @@ router.post(
         UPDATE tasks
         SET status = 'accepted'
         WHERE id = ?
+          AND college_id = ?
         `,
-        [taskId]
+        [
+          taskId,
+          activeCollegeId,
+        ]
       );
 
       await connection.commit();
@@ -1584,6 +1665,17 @@ router.put(
         });
       }
 
+      const collegeId =
+        getActiveCollegeId(req);
+
+      if (!collegeId) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "No active college selected",
+        });
+      }
+
       const {
         title,
         description,
@@ -1631,6 +1723,7 @@ router.put(
         await db.execute(
           `
           UPDATE tasks
+
           SET
             title = ?,
             description = ?,
@@ -1642,6 +1735,7 @@ router.put(
 
           WHERE id = ?
             AND user_id = ?
+            AND college_id = ?
           `,
           [
             title.trim(),
@@ -1653,6 +1747,7 @@ router.put(
             meeting_time || null,
             id,
             userId,
+            collegeId,
           ]
         );
 
@@ -1688,43 +1783,69 @@ router.put(
 
 // =====================================================
 // COMPLETE TASK
-// Accepted helper marks the task as completed
+// Accepted helper marks task as completed
 // =====================================================
 
 router.put(
   "/:id/complete",
   async (req, res) => {
     try {
-      const taskId = Number(req.params.id);
+      const taskId =
+        Number(req.params.id);
 
       if (!Number.isInteger(taskId)) {
         return res.status(400).json({
           success: false,
-          message: "Invalid task ID",
+          message:
+            "Invalid task ID",
         });
       }
 
-      const helperId = req.user.userId;
+      const helperId =
+        req.user.userId;
+
+      const collegeId =
+        getActiveCollegeId(req);
+
+      if (!collegeId) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "No active college selected",
+        });
+      }
 
       // Find the task and its accepted helper
-      const [rows] = await db.execute(
-        `
-        SELECT
-          t.id,
-          t.user_id AS owner_id,
-          t.status AS task_status,
-          a.helper_id,
-          a.status AS acceptance_status
-        FROM tasks t
-        JOIN acceptances a
-          ON a.task_id = t.id
-        WHERE t.id = ?
-          AND a.helper_id = ?
-          AND a.status = 'accepted'
-        LIMIT 1
-        `,
-        [taskId, helperId]
-      );
+      // only inside the active college.
+
+      const [rows] =
+        await db.execute(
+          `
+          SELECT
+            t.id,
+            t.user_id AS owner_id,
+            t.status AS task_status,
+            a.helper_id,
+            a.status AS acceptance_status
+
+          FROM tasks t
+
+          JOIN acceptances a
+            ON a.task_id = t.id
+
+          WHERE t.id = ?
+            AND t.college_id = ?
+            AND a.helper_id = ?
+            AND a.status = 'accepted'
+
+          LIMIT 1
+          `,
+          [
+            taskId,
+            collegeId,
+            helperId,
+          ]
+        );
 
       if (rows.length === 0) {
         return res.status(403).json({
@@ -1734,9 +1855,35 @@ router.put(
         });
       }
 
-      const task = rows[0];
+      const task =
+        rows[0];
 
-      if (task.task_status !== "accepted") {
+      const [payments] = await db.execute(
+        `
+        SELECT status
+        FROM payments
+        WHERE task_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+        `,
+        [taskId]
+      );
+
+      const latestPaymentStatus =
+        String(payments[0]?.status || "").toLowerCase();
+
+      if (latestPaymentStatus !== "paid") {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Task cannot be completed until the owner has paid the helper.",
+        });
+      }
+
+      if (
+        task.task_status !==
+        "accepted"
+      ) {
         return res.status(400).json({
           success: false,
           message:
@@ -1745,26 +1892,39 @@ router.put(
       }
 
       // Mark task as completed
-      const [result] = await db.execute(
-        `
-        UPDATE tasks
-        SET status = 'completed'
-        WHERE id = ?
-          AND status = 'accepted'
-        `,
-        [taskId]
-      );
 
-      if (result.affectedRows === 0) {
+      const [result] =
+        await db.execute(
+          `
+          UPDATE tasks
+
+          SET status = 'completed'
+
+          WHERE id = ?
+            AND college_id = ?
+            AND status = 'accepted'
+          `,
+          [
+            taskId,
+            collegeId,
+          ]
+        );
+
+      if (
+        result.affectedRows === 0
+      ) {
         return res.status(409).json({
           success: false,
-          message: "Task was already completed or changed",
+          message:
+            "Task was already completed or changed",
         });
       }
 
       res.json({
         success: true,
-        message: "Task completed successfully",
+        message:
+          "Task completed successfully",
+
         task: {
           id: taskId,
           status: "completed",
@@ -1809,16 +1969,30 @@ router.delete(
       const userId =
         req.user.userId;
 
+      const collegeId =
+        getActiveCollegeId(req);
+
+      if (!collegeId) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "No active college selected",
+        });
+      }
+
       const [result] =
         await db.execute(
           `
           DELETE FROM tasks
+
           WHERE id = ?
             AND user_id = ?
+            AND college_id = ?
           `,
           [
             id,
             userId,
+            collegeId,
           ]
         );
 
@@ -1872,9 +2046,24 @@ router.post(
       const userId =
         req.user.userId;
 
+      const collegeId =
+        getActiveCollegeId(req);
+
       const {
         transaction_id,
       } = req.body;
+
+      // -------------------------------------------------
+      // Validate active college
+      // -------------------------------------------------
+
+      if (!collegeId) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "No active college selected",
+        });
+      }
 
       // -------------------------------------------------
       // Validate task ID
@@ -1941,15 +2130,16 @@ router.post(
             ON helper.id = a.helper_id
 
           WHERE t.id = ?
+            AND t.college_id = ?
             AND t.user_id = ?
             AND a.status = 'accepted'
 
           ORDER BY a.id DESC
-
           LIMIT 1
           `,
           [
             taskId,
+            collegeId,
             userId,
           ]
         );
@@ -2083,7 +2273,6 @@ router.post(
           success: false,
           message:
             "This Algorand transaction has already been used",
-
           transaction_id,
         });
       }
@@ -2107,10 +2296,8 @@ router.post(
 
         return res.status(400).json({
           success: false,
-
           message:
             "Transaction could not be confirmed on Algorand Testnet",
-
           details:
             error.message,
         });
@@ -2250,7 +2437,6 @@ router.post(
       ) {
         return res.status(400).json({
           success: false,
-
           message:
             "Transaction sender does not match task owner",
 
@@ -2272,7 +2458,6 @@ router.post(
       ) {
         return res.status(400).json({
           success: false,
-
           message:
             "Transaction receiver does not match accepted helper",
 
@@ -2294,7 +2479,6 @@ router.post(
       ) {
         return res.status(400).json({
           success: false,
-
           message:
             "Wrong asset. Expected USDC Testnet",
 
@@ -2339,7 +2523,6 @@ router.post(
       ) {
         return res.status(400).json({
           success: false,
-
           message:
             "Transaction amount does not match task reward",
 
@@ -2417,6 +2600,7 @@ router.post(
           await connection.execute(
             `
             UPDATE acceptances
+
             SET
               payment_status = 'paid',
               payment_transaction_id = ?,
@@ -2428,11 +2612,9 @@ router.post(
             `,
             [
               transaction_id,
-
               Number(
                 paymentData.reward
               ),
-
               paymentData.acceptance_id,
             ]
           );
@@ -2457,20 +2639,17 @@ router.post(
             status,
             transaction_id
           )
+
           VALUES
           (?, ?, ?, ?, 'paid', ?)
           `,
           [
             taskId,
-
             paymentData.owner_id,
-
             paymentData.helper_id,
-
             Number(
               paymentData.reward
             ),
-
             transaction_id,
           ]
         );
@@ -2535,7 +2714,6 @@ router.post(
 
         return res.status(500).json({
           success: false,
-
           message:
             "Blockchain payment was confirmed, but database update failed",
         });
@@ -2550,7 +2728,6 @@ router.post(
 
       return res.status(500).json({
         success: false,
-
         message:
           "Server error while processing helper payment",
       });

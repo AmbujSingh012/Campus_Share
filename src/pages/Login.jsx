@@ -62,7 +62,10 @@ function Login() {
           );
         }
 
-        localStorage.setItem("token", googleToken);
+        localStorage.setItem(
+          "token",
+          googleToken
+        );
 
         localStorage.setItem(
           "user",
@@ -126,6 +129,13 @@ function Login() {
       return;
     }
 
+    if (!selectedCollege?.id) {
+      setError(
+        "Please select your college before login."
+      );
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -141,6 +151,7 @@ function Login() {
           body: JSON.stringify({
             email,
             password,
+            college_id: selectedCollege.id,
           }),
         }
       );
@@ -193,6 +204,7 @@ function Login() {
       setError(
         "Enter your email address first."
       );
+
       return;
     }
 
@@ -263,20 +275,24 @@ function Login() {
       }
     }
 
+    if (!collegeId) {
+      setError(
+        "Please select your college before login."
+      );
+
+      return;
+    }
+
     const params = new URLSearchParams();
 
-    if (collegeId) {
-      params.set(
-        "college_id",
-        collegeId
-      );
-    }
+    params.set(
+      "college_id",
+      collegeId
+    );
 
     const googleLoginUrl =
       `${API_BASE_URL}/api/auth/google` +
-      (params.toString()
-        ? `?${params.toString()}`
-        : "");
+      `?${params.toString()}`;
 
     window.location.href =
       googleLoginUrl;
@@ -288,7 +304,6 @@ function Login() {
 
   return (
     <div className="login-page app-page-frame">
-
       <div className="login-orb login-orb-one"></div>
 
       <div className="login-orb login-orb-two"></div>
@@ -296,11 +311,8 @@ function Login() {
       <div className="login-orb login-orb-three"></div>
 
       <div className="login-container">
-
         <div className="login-top">
-
           <div className="login-brand">
-
             <div className="login-brand-icon">
               C
             </div>
@@ -308,13 +320,10 @@ function Login() {
             <span>
               CampusShare
             </span>
-
           </div>
-
         </div>
 
         <div className="login-card">
-
           <div className="login-card-glow"></div>
 
           {selectedCollege && (
@@ -324,13 +333,11 @@ function Login() {
               onClick={() => navigate("/")}
               disabled={loading}
             >
-
               <div className="login-campus-icon">
                 🎓
               </div>
 
               <div className="login-campus-info">
-
                 <span>
                   Continuing with
                 </span>
@@ -338,24 +345,19 @@ function Login() {
                 <strong>
                   {selectedCollege.name}
                 </strong>
-
               </div>
 
               <ArrowLeft size={16} />
-
             </button>
           )}
 
           <div className="login-heading">
-
             <div className="login-welcome-badge">
-
               <span></span>
 
               <h2>
                 Welcome
               </h2>
-
             </div>
 
             <h1>
@@ -369,18 +371,15 @@ function Login() {
             <p>
               Connect with students, share resources and get profit.
             </p>
-
           </div>
 
           {error && (
             <div className="login-error">
-
               <span>
                 !
               </span>
 
               {error}
-
             </div>
           )}
 
@@ -388,9 +387,7 @@ function Login() {
             onSubmit={handleLogin}
             className="login-form"
           >
-
             <div className="login-form-group">
-
               <label>
                 Email address
               </label>
@@ -404,13 +401,10 @@ function Login() {
                 }
                 disabled={loading}
               />
-
             </div>
 
             <div className="login-form-group">
-
               <div className="login-label-row">
-
                 <label>
                   Password
                 </label>
@@ -422,11 +416,9 @@ function Login() {
                 >
                   Forgot password?
                 </button>
-
               </div>
 
               <div className="login-password-wrapper">
-
                 <input
                   type={
                     showPassword
@@ -453,17 +445,13 @@ function Login() {
                   disabled={loading}
                   aria-label="Toggle password visibility"
                 >
-
                   {showPassword ? (
                     <EyeOff size={18} />
                   ) : (
                     <Eye size={18} />
                   )}
-
                 </button>
-
               </div>
-
             </div>
 
             <button
@@ -471,7 +459,6 @@ function Login() {
               className="login-submit"
               disabled={loading}
             >
-
               <span>
                 {loading
                   ? "Logging in..."
@@ -480,20 +467,15 @@ function Login() {
 
               {!loading && (
                 <span className="login-submit-icon">
-
                   <ArrowRight
                     size={17}
                   />
-
                 </span>
               )}
-
             </button>
-
           </form>
 
           <div className="login-divider">
-
             <span></span>
 
             <small>
@@ -501,7 +483,6 @@ function Login() {
             </small>
 
             <span></span>
-
           </div>
 
           <button
@@ -510,27 +491,22 @@ function Login() {
             onClick={handleGoogleLogin}
             disabled={loading}
           >
-
             <span className="login-google-icon">
               G
             </span>
 
             Continue with Google
-
           </button>
 
           <div className="login-trust">
-
             <ShieldCheck size={15} />
 
             <span>
               Your campus account stays secure
             </span>
-
           </div>
 
           <div className="login-signup">
-
             <span>
               New to CampusShare?
             </span>
@@ -540,25 +516,19 @@ function Login() {
               onClick={handleSignup}
               disabled={loading}
             >
-
               Create account
 
               <ArrowRight
                 size={14}
               />
-
             </button>
-
           </div>
-
         </div>
 
         <p className="login-footer">
           Built for campus life • Share more. Do more.
         </p>
-
       </div>
-
     </div>
   );
 }

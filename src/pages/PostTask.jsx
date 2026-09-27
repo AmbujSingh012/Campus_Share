@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 
 import {
@@ -6,7 +7,6 @@ import {
   Coins,
   MapPin,
   Phone,
-  Plus,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
@@ -42,7 +42,11 @@ function PostTask() {
     localStorage.getItem("user") || "null"
   );
 
-  const mobile = savedUser?.mobile || "";
+  // Mobile number from Profile, if available.
+  // If there is no mobile number, the user can enter one here.
+  const [mobile, setMobile] = useState(
+    savedUser?.mobile || ""
+  );
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -80,16 +84,18 @@ function PostTask() {
       return;
     }
 
-    if (!mobile) {
+    // Mobile number is required.
+    if (!mobile.trim()) {
       setError(
-        "Mobile number is required. Please add your mobile number in Profile."
+        "Mobile number is required. Please enter your mobile number."
       );
       return;
     }
 
+    // Indian mobile number validation.
     if (!/^[6-9]\d{9}$/.test(String(mobile))) {
       setError(
-        "Your saved mobile number is invalid. Please update it in Profile."
+        "Please enter a valid 10-digit Indian mobile number."
       );
       return;
     }
@@ -119,6 +125,30 @@ function PostTask() {
       if (!data.success) {
         throw new Error(
           data.message || "Failed to create task."
+        );
+      }
+
+      /*
+       * Save the mobile number in localStorage as well.
+       *
+       * This means:
+       * - If the user entered it directly on Post Task,
+       *   it will be available the next time.
+       * - Existing profile information is preserved.
+       */
+      const currentUser = JSON.parse(
+        localStorage.getItem("user") || "null"
+      );
+
+      if (currentUser) {
+        const updatedUser = {
+          ...currentUser,
+          mobile: String(mobile),
+        };
+
+        localStorage.setItem(
+          "user",
+          JSON.stringify(updatedUser)
         );
       }
 
@@ -294,20 +324,20 @@ function PostTask() {
                   </label>
 
                   <div className="post-task-reward-input">
-  <input
-    type="number"
-    min="0"
-    step="0.01"
-    placeholder="50"
-    value={reward}
-    onChange={(event) =>
-      setReward(event.target.value)
-    }
-    disabled={loading}
-  />
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="50"
+                      value={reward}
+                      onChange={(event) =>
+                        setReward(event.target.value)
+                      }
+                      disabled={loading}
+                    />
 
-  <span>₹</span>
-</div>
+                    <span>₹</span>
+                  </div>
 
                   <small>
                     Set a fair reward to attract helpers.
@@ -406,6 +436,7 @@ function PostTask() {
             </section>
 
             {/* NEW MOBILE NUMBER SECTION */}
+
             <section className="post-task-card">
               <div className="post-task-section-heading">
                 <div>
@@ -423,29 +454,33 @@ function PostTask() {
               <div className="post-task-fields">
                 <div className="post-task-field full">
                   <label>
-                    <Phone size={14} />
-                    Mobile number
+                    <Phone size={14} /> Mobile number
                   </label>
 
                   <input
                     type="tel"
                     value={mobile}
-                    readOnly
+                    onChange={(event) =>
+                      setMobile(
+                        event.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 10)
+                      )
+                    }
                     disabled={loading}
                     placeholder="10-digit mobile number"
                   />
 
                   <small>
-                    This number is taken from your profile
-                    and will be shared with the accepted
-                    helper only.
+                    {mobile
+                      ? "This number will be shared with the accepted helper only."
+                      : "You can enter your mobile number here or add it in Profile."}
                   </small>
 
                   {!mobile && (
                     <small>
-                      No mobile number found. Please add
-                      your mobile number in Profile before
-                      posting a task.
+                      No mobile number found. You can enter
+                      your mobile number here.
                     </small>
                   )}
                 </div>

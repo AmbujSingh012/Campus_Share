@@ -8,7 +8,6 @@ import {
   Settings,
   UserRound,
   Save,
-  Wallet,
   Bell,
   ShieldCheck,
   GraduationCap,
@@ -21,10 +20,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import BottomNavigation from "../components/BottomNavigation";
 import "./Profile.css";
-import {
-  connectPeraWallet,
-  reconnectPeraWallet,
-} from "../utils/peraX402";
 
 function Profile() {
   const navigate = useNavigate();
@@ -47,13 +42,6 @@ function Profile() {
   const [mobile, setMobile] = useState(savedUser?.mobile || "");
 const [upiId, setUpiId] = useState(savedUser?.upi_id || "");
 
-  const [walletAddress, setWalletAddress] = useState(
-    savedUser?.wallet_address || ""
-  );
-
-  const [walletConnecting, setWalletConnecting] =
-    useState(false);
-
   const [notifications, setNotifications] = useState(true);
 
   const [transactions, setTransactions] = useState([]);
@@ -67,34 +55,52 @@ const [upiId, setUpiId] = useState(savedUser?.upi_id || "");
   }, [savedUser, navigate]);
 
   const getProfile = async () => {
-    try {
-      if (!savedUser?.id) return;
+  try {
+    if (!savedUser?.id) return;
 
-      const response = await fetch(
-        `${API_BASE_URL}/api/profile/${savedUser.id}`
-      );
+    const response = await fetch(
+      `${API_BASE_URL}/api/profile/${savedUser.id}`
+    );
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (!response.ok || !data.success) {
-        console.error(
-          "Profile fetch error:",
-          data.message
-        );
-        return;
-      }
-
-      setUser((prev) => ({
-        ...prev,
-        ...data.profile,
-      }));
-    } catch (error) {
+    if (!response.ok || !data.success) {
       console.error(
-        "Profile connection error:",
-        error
+        "Profile fetch error:",
+        data.message
       );
+      return;
     }
-  };
+
+    const updatedUser = {
+      ...savedUser,
+      ...data.profile,
+    };
+
+    // Keep localStorage synchronized with the latest profile
+    localStorage.setItem(
+      "user",
+      JSON.stringify(updatedUser)
+    );
+
+    // Update Profile page state
+    setUser(updatedUser);
+    setName(
+      updatedUser.name ||
+        updatedUser.full_name ||
+        updatedUser.username ||
+        ""
+    );
+    setEmail(updatedUser.email || "");
+    setMobile(updatedUser.mobile || "");
+    setUpiId(updatedUser.upi_id || "");
+  } catch (error) {
+    console.error(
+      "Profile connection error:",
+      error
+    );
+  }
+};
 
   useEffect(() => {
     if (savedUser?.id) {
@@ -161,35 +167,6 @@ const [upiId, setUpiId] = useState(savedUser?.upi_id || "");
     navigate("/login");
   };
 
-  const handleConnectWallet = async () => {
-    try {
-      setWalletConnecting(true);
-
-      let address = await connectPeraWallet();
-
-      if (!address) {
-        address = await reconnectPeraWallet();
-      }
-
-      if (!address) {
-        alert("Pera Wallet connection failed.");
-        return;
-      }
-
-      setWalletAddress(address);
-      alert("Pera Wallet connected successfully!");
-    } catch (error) {
-      console.error("Pera Wallet error:", error);
-
-      alert(
-        error.message ||
-          "Failed to connect Pera Wallet."
-      );
-    } finally {
-      setWalletConnecting(false);
-    }
-  };
-
   const handleSaveProfile = async () => {
     if (!name.trim() || !email.trim()) {
       alert("Name and email are required.");
@@ -213,7 +190,6 @@ const [upiId, setUpiId] = useState(savedUser?.upi_id || "");
             email: email.trim(),
             mobile: mobile.trim() || null,
             upi_id: upiId.trim() || null,
-            wallet_address: walletAddress || null,
           }),
         }
       );
@@ -238,9 +214,6 @@ const [upiId, setUpiId] = useState(savedUser?.upi_id || "");
       setEmail(data.user.email);
       setMobile(data.user.mobile || "");
       setUpiId(data.user.upi_id || "");
-      setWalletAddress(
-        data.user.wallet_address || ""
-      );
 
       alert("Profile updated successfully!");
 
@@ -553,61 +526,6 @@ const ratingCount = Number(user.ratingCount || 0);
                   />
                 </div>
               </div>
-            </section>
-
-            <section className="profile-wallet-card">
-              <div className="profile-wallet-heading">
-                <div className="profile-wallet-icon">
-                  <Wallet size={21} />
-                </div>
-
-                <div>
-                  <strong>
-                    Pera Wallet
-                  </strong>
-
-                  <span>
-                    Connect your Algorand wallet
-                    for CampusShare payments.
-                  </span>
-                </div>
-              </div>
-
-              {walletAddress ? (
-                <>
-                  <div className="profile-wallet-address">
-                    {walletAddress}
-                  </div>
-
-                  <button
-                    type="button"
-                    className="profile-secondary-button"
-                    onClick={
-                      handleConnectWallet
-                    }
-                    disabled={walletConnecting}
-                  >
-                    {walletConnecting
-                      ? "Connecting..."
-                      : "Change wallet"}
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className="profile-wallet-connect"
-                  onClick={
-                    handleConnectWallet
-                  }
-                  disabled={walletConnecting}
-                >
-                  <Wallet size={18} />
-
-                  {walletConnecting
-                    ? "Connecting..."
-                    : "Connect Pera Wallet"}
-                </button>
-              )}
             </section>
 
             <button

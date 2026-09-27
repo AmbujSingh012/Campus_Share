@@ -18,24 +18,14 @@ import {
   Zap,
 } from "lucide-react";
 
-import {
-  connectPeraWallet,
-  createPeraX402Signer,
-} from "../utils/peraWallet";
+import API_BASE_URL, { borrowResource, acceptTask } from "../api";
 
-import { borrowResource, acceptTask } from "../api";
-
-import { x402Client } from "@x402/core/client";
-import { ExactAvmScheme } from "@x402/avm/exact/client";
-import { wrapFetchWithPayment } from "@x402/fetch";
 
 import "./CampusHelper.css";
 
 function CampusHelper() {
   const navigate = useNavigate();
 
-  const [walletAddress, setWalletAddress] = useState("");
-  const [walletConnecting, setWalletConnecting] = useState(false);
   const [request, setRequest] = useState("");
   const [response, setResponse] = useState("");
   const [recommendations, setRecommendations] = useState({
@@ -45,33 +35,9 @@ function CampusHelper() {
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
 
-  const handleConnectWallet = async () => {
-    try {
-      setWalletConnecting(true);
-
-      const address = await connectPeraWallet();
-
-      setWalletAddress(address);
-      setResponse("Pera Wallet connected. You are ready to ask the helper.");
-    } catch (error) {
-      console.error("Wallet connection failed:", error);
-
-      setResponse(
-        error?.message || "Unable to connect Pera Wallet."
-      );
-    } finally {
-      setWalletConnecting(false);
-    }
-  };
-
   const handleAskHelper = async () => {
     if (!request.trim()) {
       setResponse("Tell me what you need and I’ll find the closest match.");
-      return;
-    }
-
-    if (!walletAddress) {
-      setResponse("Connect your Pera Wallet first to use Campus Helper.");
       return;
     }
 
@@ -83,27 +49,17 @@ function CampusHelper() {
     });
 
     try {
-      const signer = createPeraX402Signer();
+      const token = localStorage.getItem("token");
 
-      const avmScheme = new ExactAvmScheme(signer, {
-        algodUrl: "https://testnet-api.algonode.cloud",
-      });
-
-      const client = new x402Client();
-
-      client.register(
-        "algorand:SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=",
-        avmScheme
-      );
-
-      const paidFetch = wrapFetchWithPayment(fetch, client);
-
-      const res = await paidFetch(
+      const res = await fetch(
         `${API_BASE_URL}/api/helper`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            ...(token
+              ? { Authorization: `Bearer ${token}` }
+              : {}),
           },
           body: JSON.stringify({
             request: request.trim(),
@@ -262,34 +218,6 @@ function CampusHelper() {
               <span>AI campus concierge</span>
             </div>
           </div>
-
-          <button
-            type="button"
-            className={`helper-wallet-button ${
-              walletAddress ? "connected" : ""
-            }`}
-            onClick={handleConnectWallet}
-            disabled={walletConnecting}
-          >
-            {walletAddress ? (
-              <>
-                <CheckCircle2 size={16} />
-                <span>
-                  {walletAddress.slice(0, 5)}...
-                  {walletAddress.slice(-4)}
-                </span>
-              </>
-            ) : (
-              <>
-                <Wallet size={16} />
-                <span>
-                  {walletConnecting
-                    ? "Connecting..."
-                    : "Connect wallet"}
-                </span>
-              </>
-            )}
-          </button>
         </header>
 
         <main className="helper-content">
@@ -313,7 +241,7 @@ function CampusHelper() {
 
               <div className="helper-powered">
                 <Zap size={14} />
-                Powered by CampusShare + x402
+                Powered by CampusShare
               </div>
             </div>
 
@@ -607,10 +535,9 @@ function CampusHelper() {
                           </div>
 
                           <span className="helper-reward-pill">
-                            {Number(task.reward || 0).toFixed(
+                            ₹{Number(task.reward || 0).toFixed(
                               2
-                            )}{" "}
-                            USDC
+                            )}
                           </span>
                         </div>
 

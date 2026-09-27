@@ -323,23 +323,29 @@ function Home() {
   }, [resources, normalizedSearch]);
 
   const filteredTasks = useMemo(() => {
-    return tasks.filter((task) =>
-      [
-        task.title,
-        task.category,
-        task.postedBy,
-        task.posted_by,
-        task.owner_name,
-        task.user_name,
-        task.location,
-      ]
-        .filter(Boolean)
-        .some((value) =>
-          String(value)
-            .toLowerCase()
-            .includes(normalizedSearch)
-        )
-    );
+    return tasks
+      .filter(
+        (task) =>
+          String(task.status || "").toLowerCase() !==
+          "completed"
+      )
+      .filter((task) =>
+        [
+          task.title,
+          task.category,
+          task.postedBy,
+          task.posted_by,
+          task.owner_name,
+          task.user_name,
+          task.location,
+        ]
+          .filter(Boolean)
+          .some((value) =>
+            String(value)
+              .toLowerCase()
+              .includes(normalizedSearch)
+          )
+      );
   }, [tasks, normalizedSearch]);
 
   const collegeName =
@@ -766,8 +772,9 @@ function Home() {
                       }}
                     >
                       <TaskCard
-                        title={task.title}
-                        budget={rewardDisplay}
+  id={task.id}
+  title={task.title}
+  budget={rewardDisplay}
                         deadline={task.deadline}
                         postedBy={
                           task.postedBy ||

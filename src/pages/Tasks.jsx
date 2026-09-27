@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -101,13 +100,6 @@ function Tasks() {
     loadTasks();
   }, []);
 
-  /*
-   * If Home page sends:
-   * /tasks?taskId=5
-   *
-   * this finds task-5 and scrolls
-   * directly to that task.
-   */
   useEffect(() => {
     if (
       loading ||
@@ -198,13 +190,18 @@ function Tasks() {
   };
 
   const getPaymentStatus = (task) => {
+    /*
+     * Payment can be successfully completed,
+     * but the payout/payment status shown on
+     * the task remains pending.
+     */
     if (
       task.my_payment_status ===
         "paid" ||
       task.task_payment_status ===
         "paid"
     ) {
-      return "Paid 💸";
+      return "Payment pending";
     }
 
     if (
@@ -213,10 +210,10 @@ function Tasks() {
       task.task_payment_status ===
         "pending"
     ) {
-      return "Payout pending";
+      return "Payment pending";
     }
 
-    return "Payout pending";
+    return "Payment pending";
   };
 
   const getTransactionStatus = (
@@ -275,6 +272,12 @@ function Tasks() {
         .toLowerCase();
 
     return tasks.filter((task) => {
+      const taskStatus = String(task.status || "").toLowerCase();
+
+      if (taskStatus === "completed") {
+        return false;
+      }
+
       const category =
         String(
           task.category || ""
@@ -476,8 +479,9 @@ function Tasks() {
                 </strong>
 
                 <span>
-                  Money on the table
+                  Total INR
                 </span>
+
               </div>
 
             </div>
