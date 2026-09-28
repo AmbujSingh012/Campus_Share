@@ -18,12 +18,18 @@ function ResourceCard({
         <div className="resource-image">
           {imageUrl ? (
             <img
-              src={`${API_BASE_URL}${imageUrl}`}
+              src={
+                imageUrl?.startsWith("http")
+                  ? imageUrl
+                  : `${API_BASE_URL}${imageUrl}`
+              }
               alt={name}
               onError={(e) => {
                 console.error(
                   "Image failed to load:",
-                  `${API_BASE_URL}${imageUrl}`
+                  imageUrl?.startsWith("http")
+                    ? imageUrl
+                    : `${API_BASE_URL}${imageUrl}`
                 );
                 e.currentTarget.style.display = "none";
               }}

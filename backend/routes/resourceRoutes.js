@@ -1,38 +1,23 @@
 const express = require("express");
 const multer = require("multer");
-const path = require("path");
+const { Readable } = require("stream");
 const db = require("../db");
 const authenticateToken = require("../middleware/authMiddleware");
+const cloudinary = require("../cloudinary");
 
 const router = express.Router();
 
 // =====================================================
-// IMAGE UPLOAD CONFIGURATION
+// IMAGE UPLOAD CONFIGURATION - CLOUDINARY
 // =====================================================
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/resources");
-  },
-
-  filename: (req, file, cb) => {
-    const uniqueName =
-      Date.now() +
-      "-" +
-      Math.round(Math.random() * 1e9) +
-      path.extname(file.originalname);
-
-    cb(null, uniqueName);
-  },
-});
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
-
   limits: {
     fileSize: 5 * 1024 * 1024,
   },
-
   fileFilter: (req, file, cb) => {
     const allowedTypes = [
       "image/jpeg",
@@ -49,6 +34,30 @@ const upload = multer({
     }
   },
 });
+
+// =====================================================
+// UPLOAD IMAGE TO CLOUDINARY
+// =====================================================
+
+function uploadToCloudinary(buffer) {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: "campusshare/resources",
+        resource_type: "image",
+      },
+      (error, result) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(result);
+        }
+      }
+    );
+
+    Readable.from(buffer).pipe(uploadStream);
+  });
+}
 
 // =====================================================
 // ALL RESOURCE APIs REQUIRE AUTHENTICATION
@@ -662,11 +671,17 @@ router.post(
 
       const user = users[0];
 
-      const imageUrl = req.file
-        ? `/uploads/resources/${req.file.filename}`
-        : null;
+ let imageUrl = null;
 
-      console.log("RESOURCE IMAGE:", imageUrl);
+if (req.file) {
+  const uploadedImage = await uploadToCloudinary(
+    req.file.buffer
+  );
+
+  imageUrl = uploadedImage.secure_url;
+}
+
+console.log("RESOURCE IMAGE:", imageUrl);
 
       const [result] = await db.execute(
         `

@@ -18,3 +18,9 @@ backend/routes/taskRoutes.js.save
 
 # Uploaded resource images
 backend/uploads/resources/*.png
+
+# Local database backup
+campusshare_backup.sql
+
+# Local Anaconda projects
+anaconda_projects/
