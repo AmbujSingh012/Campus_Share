@@ -26,6 +26,7 @@ function Login() {
   const [password, setPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   const [error, setError] = useState("");
 
@@ -209,7 +210,7 @@ function Login() {
     }
 
     try {
-      setLoading(true);
+      setForgotLoading(true);
 
       const response = await fetch(
         `${API_BASE_URL}/api/auth/forgot-password`,
@@ -250,7 +251,7 @@ function Login() {
         "Unable to connect to backend. Please try again."
       );
     } finally {
-      setLoading(false);
+      setForgotLoading(false);
     }
   };
 
@@ -412,7 +413,7 @@ function Login() {
                 <button
                   type="button"
                   onClick={handleForgotPassword}
-                  disabled={loading}
+                  disabled={loading || forgotLoading}
                 >
                   Forgot password?
                 </button>
