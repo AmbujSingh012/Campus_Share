@@ -579,7 +579,7 @@
 
 @media (max-width: 520px) {
   .post-resource-topbar {
-    grid-template-columns: 40px 1fr auto;
+    grid-template-columns: 40px minmax(0, 1fr) auto auto;
   }
 
   .post-resource-campus {
