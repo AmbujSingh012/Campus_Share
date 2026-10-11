@@ -310,3 +310,13 @@
     font-size: 23px;
   }
 }
+/* Desktop: use the hamburger menu instead of bottom navigation */
+@media (min-width: 561px) {
+  .bottom-navigation {
+    display: none;
+  }
+
+  .floating-helper-button {
+    bottom: 24px;
+  }
+}
