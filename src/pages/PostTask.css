@@ -18,7 +18,7 @@
   z-index: 20;
   min-height: 68px;
   display: grid;
-  grid-template-columns: 44px 1fr auto;
+  grid-template-columns: 44px minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 12px;
   padding: 12px 20px;
