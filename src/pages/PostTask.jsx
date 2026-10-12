@@ -14,7 +14,7 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import BottomNavigation from "../components/BottomNavigation";
-
+import NotificationBell from "../components/NotificationBell";
 import "./PostTask.css";
 
 import { createTask } from "../api";
@@ -201,6 +201,7 @@ function PostTask() {
           <div className="post-task-top-label">
             Micro-task
           </div>
+          <NotificationBell />
         </header>
 
         <main className="post-task-content">

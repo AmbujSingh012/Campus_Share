@@ -16,9 +16,49 @@
 .resources-topbar {
   min-height: 76px;
   display: grid;
-  grid-template-columns: 44px 1fr auto;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
   align-items: center;
-  gap: 14px;
+  gap: 8px 14px;
+}
+
+.resources-topbar > :first-child {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.resources-topbar > .notification-bell-wrapper {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+}
+
+.resources-topbar > .resources-post-top {
+  grid-column: 1;
+  grid-row: 2;
+  justify-self: start;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.resources-topbar > :nth-child(2):not(.notification-bell-wrapper):not(.resources-post-top) {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.resources-topbar > :nth-child(2) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.resources-topbar > .notification-bell-wrapper {
+  flex: 0 0 auto;
+}
+
+.resources-topbar > .resources-post-top {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .resources-back,
@@ -1229,5 +1269,44 @@
 
   .tasks-card-actions {
     margin: 0 4px;
+  }
+}
+/* Keep the Resources header post button fully visible */
+.resources-post-top {
+  flex-shrink: 0;
+  white-space: nowrap;
+  box-sizing: border-box;
+  line-height: 1.2;
+}
+
+.resources-post-top svg {
+  flex-shrink: 0;
+}
+
+/* Fix: complete blue background for Resources header button */
+.resources-post-top {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto !important;
+  min-width: 42px;
+  min-height: 42px;
+  box-sizing: border-box;
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  border: none;
+  overflow: visible;
+}
+
+.resources-post-top svg {
+  display: block;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 520px) {
+  .resources-post-top {
+    width: 42px;
+    min-width: 42px;
+    padding: 0;
   }
 }

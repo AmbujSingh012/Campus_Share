@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 import BottomNavigation from "../components/BottomNavigation";
-
+import NotificationBell from "../components/NotificationBell";
 import "./TaskPayment.css";
 
 import { useEffect, useState } from "react";
@@ -87,6 +87,7 @@ function TaskPayment() {
               <span>CampusShare Payments</span>
               <strong>Secure task payment</strong>
             </div>
+            <NotificationBell />
           </div>
 
           <div className="task-payment-card">
@@ -514,6 +515,7 @@ function TaskPayment() {
               Secure task payment
             </strong>
           </div>
+           <NotificationBell />
         </div>
 
         <div className="task-payment-card">

@@ -13,6 +13,7 @@ const helperRoutes = require("./routes/helperRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const collegeRoutes = require("./routes/collegeRoutes");
 const ratingRoutes = require("./routes/ratingRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 
 // =====================================================
 // OPTIONAL X402 IMPORTS
@@ -333,6 +334,8 @@ app.use(
   "/api/tasks",
   taskRoutes
 );
+
+app.use("/api/notifications", notificationRoutes);
 
 app.use(
   "/api/profile",

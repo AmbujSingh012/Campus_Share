@@ -16,6 +16,7 @@ import {
   Star,
 } from "lucide-react";
 import BottomNavigation from "../components/BottomNavigation";
+import NotificationBell from "../components/NotificationBell";
 import "./MyTasks.css";
 
 function MyTasks() {
@@ -290,7 +291,7 @@ function MyTasks() {
             <span className="my-tasks-campus-dot" />
             {collegeName}
           </div>
-
+          <NotificationBell />
           <button
             type="button"
             className="my-tasks-add-top"

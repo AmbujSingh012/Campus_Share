@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   ArrowLeft,
@@ -9,6 +10,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import BottomNavigation from "../components/BottomNavigation";
+import NotificationBell from "../components/NotificationBell";
 import "./PostResource.css";
 import { createResource } from "../api";
 
@@ -166,6 +168,8 @@ function PostResource() {
           <div className="post-resource-top-label">
             Share
           </div>
+
+          <NotificationBell />
         </header>
 
         <main className="post-resource-content">
@@ -204,7 +208,7 @@ function PostResource() {
 
           {error && (
             <div className="post-resource-error">
-              <strong>Couldn&apos;t post resource</strong>
+              <strong>Couldn't post resource</strong>
               <span>{error}</span>
             </div>
           )}
@@ -220,8 +224,10 @@ function PostResource() {
                   <h2>Show your resource</h2>
                 </div>
 
-                <p>Add a clear photo so people know what
-                  they&apos;re borrowing.</p>
+                <p>
+                  Add a clear photo so people know what
+                  they're borrowing.
+                </p>
               </div>
 
               <label className="post-resource-upload">
@@ -295,17 +301,11 @@ function PostResource() {
                     }
                     disabled={loading}
                   >
-                    <option value="">
-                      Select category
-                    </option>
+                    <option value="">Select category</option>
                     <option value="Books">Books</option>
-                    <option value="Electronics">
-                      Electronics
-                    </option>
+                    <option value="Electronics">Electronics</option>
                     <option value="Sports">Sports</option>
-                    <option value="Clothing">
-                      Clothing
-                    </option>
+                    <option value="Clothing">Clothing</option>
                     <option value="Study Materials">
                       Study Materials
                     </option>
@@ -331,9 +331,7 @@ function PostResource() {
                             ? "post-resource-condition active"
                             : "post-resource-condition"
                         }
-                        onClick={() =>
-                          setCondition(option)
-                        }
+                        onClick={() => setCondition(option)}
                         disabled={loading}
                       >
                         {option}
@@ -365,7 +363,9 @@ function PostResource() {
                   <h2>Set the borrowing details</h2>
                 </div>
 
-                <p>Choose where and how students can borrow it.</p>
+                <p>
+                  Choose where and how students can borrow it.
+                </p>
               </div>
 
               <div className="post-resource-fields">
@@ -410,7 +410,7 @@ function PostResource() {
 
               <div className="post-resource-availability">
                 <div>
-                  <strong>Available for borrowing      </strong>
+                  <strong>Available for borrowing</strong>
                   <span>
                     Students can request this resource
                     when enabled.

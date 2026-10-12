@@ -10,7 +10,7 @@ import {
   ListTodo,
   User,
 } from "lucide-react";
-
+import NotificationBell from "./NotificationBell";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Header.css";
@@ -53,14 +53,7 @@ function Header({
       </div>
 
       <div className="header-right">
-        {!showSettings && (
-          <button
-            className="icon-button"
-            aria-label="Notifications"
-          >
-            <Bell size={20} />
-          </button>
-        )}
+     {!showSettings && <NotificationBell />}
 
         {showSettings && (
           <button

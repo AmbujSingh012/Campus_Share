@@ -411,4 +411,47 @@ export async function cancelRazorpayPayment(paymentId) {
   return data;
 }
 
+// =====================================================
+// GET NOTIFICATIONS
+// =====================================================
+
+export async function getNotifications() {
+  const response = await fetch(
+    `${API_BASE_URL}/api/notifications`,
+    {
+      headers: getAuthHeaders(),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to fetch notifications");
+  }
+
+  return data;
+}
+
+// =====================================================
+// MARK ALL NOTIFICATIONS AS READ
+// =====================================================
+
+export async function markNotificationsRead() {
+  const response = await fetch(
+    `${API_BASE_URL}/api/notifications/read-all`,
+    {
+      method: "PATCH",
+      headers: getAuthHeaders(),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to mark notifications as read");
+  }
+
+  return data;
+}
+
 export default API_BASE_URL;

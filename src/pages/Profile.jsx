@@ -19,6 +19,7 @@ import {
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import BottomNavigation from "../components/BottomNavigation";
+import NotificationBell from "../components/NotificationBell";
 import "./Profile.css";
 
 function Profile() {
@@ -276,6 +277,7 @@ const ratingCount = Number(user.ratingCount || 0);
             </div>
 
             <div className="profile-modern-top-space" />
+            <NotificationBell />
           </header>
 
           <main className="profile-modern-content">
@@ -442,8 +444,11 @@ const ratingCount = Number(user.ratingCount || 0);
               Edit Profile
             </div>
 
-            <div className="profile-modern-top-space" />
-          </header>
+
+<div className="profile-modern-top-space" />
+<NotificationBell />
+</header>
+
 
           <main className="profile-modern-content">
             <section className="profile-page-heading">
@@ -563,8 +568,11 @@ const ratingCount = Number(user.ratingCount || 0);
               Settings
             </div>
 
-            <div className="profile-modern-top-space" />
-          </header>
+
+<div className="profile-modern-top-space" />
+<NotificationBell />
+</header>
+
 
           <main className="profile-modern-content">
             <section className="profile-page-heading">
@@ -689,15 +697,19 @@ const ratingCount = Number(user.ratingCount || 0);
             {collegeName}
           </div>
 
-          <button
-            type="button"
-            className="profile-settings-button"
-            onClick={() =>
-              setActiveSection("settings")
-            }
-          >
-            <Settings size={19} />
-          </button>
+
+<NotificationBell />
+
+<button
+  type="button"
+  className="profile-settings-button"
+  onClick={() =>
+    setActiveSection("settings")
+  }
+>
+  <Settings size={19} />
+</button>
+
         </header>
 
         <main className="profile-modern-content">

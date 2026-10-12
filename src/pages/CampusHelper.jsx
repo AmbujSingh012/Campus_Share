@@ -20,7 +20,7 @@ import {
 
 import API_BASE_URL, { borrowResource, acceptTask } from "../api";
 
-
+import NotificationBell from "../components/NotificationBell";
 import "./CampusHelper.css";
 
 function CampusHelper() {
@@ -218,6 +218,7 @@ function CampusHelper() {
               <span>AI campus concierge</span>
             </div>
           </div>
+          <NotificationBell />
         </header>
 
         <main className="helper-content">

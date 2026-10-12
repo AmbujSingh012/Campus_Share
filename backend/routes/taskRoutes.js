@@ -2,6 +2,7 @@ const express = require("express");
 const algosdk = require("algosdk");
 const db = require("../db");
 const authenticateToken = require("../middleware/authMiddleware");
+const { createPostNotifications } = require("../utils/notifications");
 
 const router = express.Router();
 
@@ -1377,6 +1378,21 @@ router.post(
             collegeId,
           ]
         );
+
+      try {
+        await createPostNotifications({
+          actorId: user.id,
+          collegeId,
+          notificationType: "task",
+          entityId: result.insertId,
+          title: title.trim(),
+        });
+      } catch (notificationError) {
+        console.error(
+          "Task notification creation error:",
+          notificationError
+        );
+      }
 
       const [newTasks] =
         await db.execute(

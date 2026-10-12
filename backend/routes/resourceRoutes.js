@@ -4,6 +4,7 @@ const { Readable } = require("stream");
 const db = require("../db");
 const authenticateToken = require("../middleware/authMiddleware");
 const cloudinary = require("../cloudinary");
+const { createPostNotifications } = require("../utils/notifications");
 
 const router = express.Router();
 
@@ -711,6 +712,21 @@ console.log("RESOURCE IMAGE:", imageUrl);
           imageUrl,
         ]
       );
+
+      try {
+        await createPostNotifications({
+          actorId: user.id,
+          collegeId,
+          notificationType: "resource",
+          entityId: result.insertId,
+          title: title.trim(),
+        });
+      } catch (notificationError) {
+        console.error(
+          "Resource notification creation error:",
+          notificationError
+        );
+      }
 
       const [newResource] = await db.execute(
         `

@@ -14,6 +14,7 @@ import {
   ReceiptText,
 } from "lucide-react";
 import BottomNavigation from "../components/BottomNavigation";
+import NotificationBell from "../components/NotificationBell";
 import "./TransactionHistory.css";
 
 function TransactionHistory() {
@@ -114,6 +115,7 @@ function TransactionHistory() {
             <span>CampusShare</span>
             <strong>Transaction History</strong>
           </div>
+          <NotificationBell />
         </header>
 
         <main className="transaction-history-content">

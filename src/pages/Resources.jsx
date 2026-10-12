@@ -19,6 +19,7 @@ import {
   getMyPaymentReceipts,
   cancelRazorpayPayment,
 } from "../api";
+import NotificationBell from "../components/NotificationBell";
 import ResourceCard from "../components/ResourceCard";
 import BottomNavigation from "../components/BottomNavigation";
 import "./Resources.css";
@@ -536,6 +537,7 @@ function Resources() {
             <ArrowLeft size={20} />
           </button>
 
+
           <div className="resources-campus">
             <span className="resources-campus-dot"></span>
 
@@ -545,8 +547,11 @@ function Resources() {
             </span>
           </div>
 
+          <NotificationBell />
+
           <button
             className="resources-post-top"
+
             onClick={() =>
               navigate("/post-resource")
             }

@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import BottomNavigation from "../components/BottomNavigation";
+import NotificationBell from "../components/NotificationBell";
 import "./EditResource.css";
 
 function EditResource() {
@@ -178,6 +179,7 @@ function EditResource() {
             <span>CampusShare</span>
             <strong>Edit Resource</strong>
           </div>
+          <NotificationBell />
         </header>
 
         <main className="edit-resource-content">

@@ -30,7 +30,7 @@ import API_BASE_URL, {
 } from "../api";
 
 import BottomNavigation from "../components/BottomNavigation";
-
+import NotificationBell from "../components/NotificationBell";
 import "./ConnectionDetails.css";
 
 function ConnectionDetails() {
@@ -590,14 +590,16 @@ function ConnectionDetails() {
               <ArrowLeft size={19} />
             </button>
 
-            <div className="connection-details-topbar-copy">
-              <span>CampusShare</span>
+           <div className="connection-details-topbar-copy">
+  <span>CampusShare</span>
 
-              <strong>
-                Connection Details
-              </strong>
-            </div>
-          </header>
+  <strong>
+    Connection Details
+  </strong>
+</div>
+
+<NotificationBell />
+</header>
 
           <div className="connection-details-state">
             <div className="connection-details-state-icon error">
@@ -736,6 +738,7 @@ function ConnectionDetails() {
               Connection Details
             </strong>
           </div>
+          <NotificationBell />
         </header>
 
         <main className="connection-details-content">

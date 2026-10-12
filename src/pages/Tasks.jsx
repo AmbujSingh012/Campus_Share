@@ -23,7 +23,7 @@ import {
 } from "../api";
 
 import BottomNavigation from "../components/BottomNavigation";
-
+import NotificationBell from "../components/NotificationBell";
 import "./Tasks.css";
 
 function Tasks() {
@@ -389,7 +389,7 @@ function Tasks() {
                 "Your Campus"}
             </span>
           </div>
-
+                   <NotificationBell />
           <button
             className="tasks-post-top"
             onClick={() =>

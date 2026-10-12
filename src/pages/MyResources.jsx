@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 
 import BottomNavigation from "../components/BottomNavigation";
-
+import NotificationBell from "../components/NotificationBell";
 import "./MyResources.css";
 
 function MyResources() {
@@ -535,7 +535,7 @@ function MyResources() {
             <span className="my-resources-campus-dot" />
             {collegeName}
           </div>
-
+         <NotificationBell />
           <button
             type="button"
             className="my-resources-add-top"

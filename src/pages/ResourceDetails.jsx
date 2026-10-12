@@ -11,6 +11,7 @@ import {
 
 import { getResourceById } from "../api";
 import BottomNavigation from "../components/BottomNavigation";
+import NotificationBell from "../components/NotificationBell";
 import "./Resources.css";
 
 function ResourceDetails() {
@@ -93,11 +94,15 @@ function ResourceDetails() {
               <ArrowLeft size={20} />
             </button>
 
-            <div className="resources-campus">
-              <span className="resources-campus-dot"></span>
-              <span>Resource Details</span>
-            </div>
-          </header>
+
+          <div className="resources-campus">
+            <span className="resources-campus-dot"></span>
+            <span>Resource Details</span>
+          </div>
+
+          <NotificationBell />
+        </header>
+
 
           <main className="resources-modern-content">
             <section className="resources-empty">
@@ -144,6 +149,7 @@ function ResourceDetails() {
             <span className="resources-campus-dot"></span>
             <span>Resource Details</span>
           </div>
+          <NotificationBell />
         </header>
 
         <main className="resources-modern-content">

@@ -1,23 +1,20 @@
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  requireTLS: true,
-  family: 4,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_APP_PASSWORD,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 async function sendPasswordResetEmail(to, resetLink) {
-  await transporter.sendMail({
-    from: `"CampusShare" <${process.env.EMAIL_USER}>`,
-    to,
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM,
+    to: [to],
     subject: "Reset your CampusShare password",
-    text: `You requested a password reset for CampusShare.\n\nOpen this link to reset your password:\n${resetLink}\n\nThis link expires in 15 minutes.\n\nIf you did not request this, you can safely ignore this email.`,
+    text: `You requested a password reset for CampusShare.
+
+Open this link to reset your password:
+${resetLink}
+
+This link expires in 15 minutes.
+
+If you did not request this, you can safely ignore this email.`,
     html: `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px">
         <h2>Reset your CampusShare password</h2>
@@ -33,6 +30,13 @@ async function sendPasswordResetEmail(to, resetLink) {
       </div>
     `,
   });
+
+  if (error) {
+    console.error("Resend email error:", error);
+    throw new Error(error.message || "Failed to send password reset email");
+  }
+
+  console.log("Password reset email sent:", data?.id);
 }
 
 module.exports = { sendPasswordResetEmail };
