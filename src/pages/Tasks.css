@@ -998,9 +998,16 @@
 
 @media (max-width: 520px) {
   .tasks-post-top {
-    width: 42px;
+    width: auto;
     min-width: 42px;
-    padding: 0;
+    padding: 0 12px;
+    background: #2563eb !important;
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+  }
+
+  .tasks-post-top span {
+    display: inline !important;
   }
 }
 
