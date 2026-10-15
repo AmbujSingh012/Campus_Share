@@ -178,3 +178,11 @@
     flex-basis: 38px;
   }
 }
+/* Mobile fix: bottom navigation replaces the hamburger menu */
+@media (max-width: 800px) {
+  .header .desktop-menu-toggle,
+  .header .desktop-navigation-menu,
+  .header .desktop-menu-backdrop {
+    display: none !important;
+  }
+}

@@ -1003,3 +1003,14 @@
     padding: 0;
   }
 }
+
+/* Mobile fix: keep the Post Task button fully blue */
+@media (max-width: 800px) {
+  .tasks-post-top {
+    background: #2563eb !important;
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+    border: none !important;
+    opacity: 1 !important;
+  }
+}
