@@ -1305,9 +1305,10 @@
 
 @media (max-width: 520px) {
   .resources-post-top {
-    width: auto;
-    min-width: 42px;
-    padding: 0 12px;
+    width: auto !important;
+    min-width: 130px !important;
+    padding: 0 12px !important;
+    white-space: nowrap !important;
     background: #2563eb !important;
     background-color: #2563eb !important;
     color: #ffffff !important;
