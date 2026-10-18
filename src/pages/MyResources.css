@@ -532,7 +532,6 @@ min-width: 0;
   .my-resources-campus {
     grid-column: 2;
     grid-row: 1;
-    justify-self: start;
     min-width: 0;
     max-width: 100%;
   }
@@ -544,17 +543,16 @@ min-width: 0;
   }
 
   .my-resources-add-top {
-    grid-column: 1 / -1;
+    grid-column: 1 / 2;
     grid-row: 2;
     justify-self: start;
     display: inline-flex;
     flex-direction: row;
     align-items: center;
-    justify-content: center;
     width: max-content;
     min-width: max-content;
-    flex-shrink: 0;
     white-space: nowrap;
+    margin: 0;
   }
 
   .my-resources-heading {
