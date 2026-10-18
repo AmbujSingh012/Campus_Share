@@ -640,3 +640,31 @@ min-width: 0;
     font-size: 20px;
   }
 }
+@media (max-width: 520px) {
+  .my-resources-modern-page.app-page-frame {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .my-resources-modern-shell {
+    width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .my-resources-topbar {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+}
+@media (max-width: 520px) {
+  .my-resources-modern-page.app-page-frame {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .my-resources-modern-shell {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
