@@ -18,9 +18,10 @@
   z-index: 20;
   min-height: 72px;
   display: grid;
-  grid-template-columns: 44px 1fr auto;
+  grid-template-columns: 44px minmax(0, 1fr) auto auto;
+gap: 10px;
   align-items: center;
-  gap: 14px;
+  
   padding: 12px 24px;
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(18px);
@@ -52,7 +53,8 @@
 }
 
 .my-resources-campus {
-  justify-self: center;
+  justify-self: start;
+min-width: 0;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -487,8 +489,11 @@
 
 @media (max-width: 760px) {
   .my-resources-topbar {
-    padding: 10px 15px;
-  }
+  grid-template-columns: 38px minmax(0, 1fr) auto auto;
+  gap: 6px;
+  padding-right: 10px;
+  padding-left: 10px;
+}
 
   .my-resources-content {
     padding: 26px 15px 24px;
