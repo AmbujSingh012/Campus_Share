@@ -167,9 +167,10 @@ function Home() {
               );
             }
 
+            // Update the card immediately after successful verification.
             setResources((previousResources) =>
               previousResources.map((item) =>
-                item.id === resource.id
+                String(item.id) === String(resource.id)
                   ? {
                       ...item,
                       availability: "Borrowed",
@@ -178,6 +179,20 @@ function Home() {
                   : item
               )
             );
+
+            // Re-fetch from the backend so the homepage reflects saved status.
+            try {
+              const latestResources = await getResources();
+
+              if (latestResources?.success) {
+                setResources(latestResources.resources || []);
+              }
+            } catch (refreshError) {
+              console.error(
+                "Failed to refresh resources after borrowing:",
+                refreshError
+              );
+            }
 
             const paymentId =
               verification.payment?.id ||
@@ -666,6 +681,8 @@ function Home() {
                         "Location not specified"
                       }
                       imageUrl={resource.image_url}
+                      availability={resource.availability}
+                      borrowedBy={resource.borrowed_by}
                       showImage={false}
                       onBorrow={() =>
                         handleBorrow(resource)

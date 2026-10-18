@@ -1,3 +1,4 @@
+
 import API_BASE_URL from "../api";
 import "./ResourceCard.css";
 import { CheckCircle, Star, MapPin } from "lucide-react";
@@ -10,8 +11,14 @@ function ResourceCard({
   location = "Campus",
   imageUrl,
   onBorrow,
+  availability = "Available",
+  borrowedBy = null,
   showImage = true,
 }) {
+  const isBorrowed =
+    String(availability || "").toLowerCase() === "borrowed" ||
+    Boolean(borrowedBy);
+
   return (
     <div className="resource-card">
       {showImage && (
@@ -50,13 +57,9 @@ function ResourceCard({
           </div>
         </div>
 
-        <p className="category">
-          {category}
-        </p>
+        <p className="category">{category}</p>
 
-        <p className="owner">
-          Owner: {owner}
-        </p>
+        <p className="owner">Owner: {owner}</p>
 
         <p className="location">
           <MapPin size={14} />
@@ -64,16 +67,18 @@ function ResourceCard({
         </p>
 
         <div className="resource-bottom">
-          <span className="available">
+          <span className={isBorrowed ? "borrowed" : "available"}>
             <CheckCircle size={14} />
-            Available
+            {isBorrowed ? "Borrowed" : "Available"}
           </span>
 
           <button
+            type="button"
             className="small-button"
+            disabled={isBorrowed}
             onClick={onBorrow}
           >
-            Borrow
+            {isBorrowed ? "Borrowed" : "Borrow"}
           </button>
         </div>
       </div>
