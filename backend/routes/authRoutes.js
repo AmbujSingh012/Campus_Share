@@ -22,25 +22,18 @@ POST /api/auth/register
 */
 router.post("/register", async (req, res) => {
   try {
-    const {
-      name,
-      email,
-      mobile,
-      password,
-      college_id,
-    } = req.body;
+    const { name, email, mobile, password, college_id } = req.body;
 
     if (!name || !email || !mobile || !password || !college_id) {
       return res.status(400).json({
         success: false,
-        message:
-          "Name, email, mobile, password and college are required",
+        message: "Name, email, mobile, password and college are required",
       });
     }
 
-    const cleanName = name.trim();
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanMobile = mobile.trim();
+    const cleanName = String(name).trim();
+    const cleanEmail = String(email).trim().toLowerCase();
+    const cleanMobile = String(mobile).trim();
     const collegeId = Number(college_id);
 
     if (!cleanName) {
@@ -66,10 +59,17 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    if (password.length < 6) {
+    if (typeof password !== "string" || password.length < 6) {
       return res.status(400).json({
         success: false,
         message: "Password must be at least 6 characters",
+      });
+    }
+
+    if (!Number.isInteger(collegeId) || collegeId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid college selected",
       });
     }
 
@@ -117,14 +117,7 @@ router.post("/register", async (req, res) => {
       `INSERT INTO users
        (name, email, mobile, password, college_id, wallet_address)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        cleanName,
-        cleanEmail,
-        cleanMobile,
-        passwordHash,
-        collegeId,
-        null,
-      ]
+      [cleanName, cleanEmail, cleanMobile, passwordHash, collegeId, null]
     );
 
     return res.status(201).json({
@@ -160,7 +153,12 @@ router.post("/login", async (req, res) => {
   try {
     const { email, password, college_id } = req.body;
 
-    if (!email || !password) {
+    if (
+      typeof email !== "string" ||
+      !email.trim() ||
+      typeof password !== "string" ||
+      !password
+    ) {
       return res.status(400).json({
         success: false,
         message: "Email and password are required",
@@ -188,7 +186,6 @@ router.post("/login", async (req, res) => {
 
     const cleanEmail = email.trim().toLowerCase();
 
-    // The selected college must exist.
     const [colleges] = await db.execute(
       `SELECT id, name
        FROM colleges
@@ -205,15 +202,6 @@ router.post("/login", async (req, res) => {
 
     const selectedCollege = colleges[0];
 
-    /*
-    IMPORTANT:
-
-    users.college_id is NOT used as the active college.
-
-    The college selected on the Login page becomes the
-    active college for this login session.
-    */
-
     const [users] = await db.execute(
       `SELECT
         u.id,
@@ -223,9 +211,16 @@ router.post("/login", async (req, res) => {
         u.password,
         u.wallet_address
        FROM users u
-       WHERE u.email = ?`,
+       WHERE LOWER(TRIM(u.email)) = ?`,
       [cleanEmail]
     );
+
+    // Temporary diagnostics: never log the password or password hash.
+    console.log("[LOGIN DEBUG] Email lookup:", {
+      email: cleanEmail,
+      userFound: users.length > 0,
+      hasPasswordHash: Boolean(users[0] && users[0].password),
+    });
 
     if (users.length === 0) {
       return res.status(401).json({
@@ -236,10 +231,21 @@ router.post("/login", async (req, res) => {
 
     const user = users[0];
 
+    if (typeof user.password !== "string" || !user.password) {
+      console.error("[LOGIN DEBUG] User has no usable password hash.");
+
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password",
+      });
+    }
+
     const passwordMatch = await bcrypt.compare(
       password,
       user.password
     );
+
+    console.log("[LOGIN DEBUG] Password match:", passwordMatch);
 
     if (!passwordMatch) {
       return res.status(401).json({
@@ -248,31 +254,13 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    /*
-    JWT stores the ACTIVE college.
-
-    Example:
-
-    Login at College A
-    -> collegeId = A
-
-    Logout
-
-    Login at College B
-    -> collegeId = B
-
-    Same account, different active college.
-    */
-
     const token = jwt.sign(
       {
         userId: user.id,
         collegeId: selectedCollegeId,
       },
       JWT_SECRET,
-      {
-        expiresIn: "7d",
-      }
+      { expiresIn: "7d" }
     );
 
     return res.json({
@@ -285,8 +273,6 @@ router.post("/login", async (req, res) => {
         email: user.email,
         mobile: user.mobile || null,
         wallet_address: user.wallet_address || null,
-
-        // Active college for this login session
         college_id: selectedCollegeId,
         college: selectedCollege.name,
       },
@@ -300,7 +286,6 @@ router.post("/login", async (req, res) => {
     });
   }
 });
-
 /*
 =========================================
 FORGOT PASSWORD
@@ -311,7 +296,7 @@ router.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
 
-    if (!email) {
+    if (typeof email !== "string" || !email.trim()) {
       return res.status(400).json({
         success: false,
         message: "Email is required",
@@ -343,19 +328,23 @@ router.post("/forgot-password", async (req, res) => {
       .digest("hex");
 
     await db.execute(
-      "UPDATE users SET reset_password_token = ?, reset_password_expires = DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE id = ?",
+      `UPDATE users
+       SET reset_password_token = ?,
+           reset_password_expires = DATE_ADD(NOW(), INTERVAL 15 MINUTE)
+       WHERE id = ?`,
       [hashedToken, user.id]
     );
 
-    const resetLink =
-      process.env.FRONTEND_URL +
-      "/reset-password?token=" +
-      rawToken;
+    const frontendUrl = process.env.FRONTEND_URL;
 
-    await sendPasswordResetEmail(
-      user.email,
-      resetLink
-    );
+    if (!frontendUrl) {
+      throw new Error("FRONTEND_URL is not configured");
+    }
+
+    const resetLink =
+      `${frontendUrl.replace(/\/+$/, "")}/reset-password?token=${encodeURIComponent(rawToken)}`;
+
+    await sendPasswordResetEmail(user.email, resetLink);
 
     return res.json({
       success: true,
@@ -382,19 +371,22 @@ router.post("/reset-password", async (req, res) => {
   try {
     const { token, password } = req.body;
 
-    if (!token || !password) {
+    if (
+      typeof token !== "string" ||
+      !token ||
+      typeof password !== "string" ||
+      !password
+    ) {
       return res.status(400).json({
         success: false,
-        message:
-          "Reset token and new password are required",
+        message: "Reset token and new password are required",
       });
     }
 
     if (password.length < 6) {
       return res.status(400).json({
         success: false,
-        message:
-          "Password must be at least 6 characters",
+        message: "Password must be at least 6 characters",
       });
     }
 
@@ -404,7 +396,10 @@ router.post("/reset-password", async (req, res) => {
       .digest("hex");
 
     const [users] = await db.execute(
-      "SELECT id FROM users WHERE reset_password_token = ? AND reset_password_expires > NOW()",
+      `SELECT id
+       FROM users
+       WHERE reset_password_token = ?
+         AND reset_password_expires > NOW()`,
       [hashedToken]
     );
 
@@ -415,28 +410,27 @@ router.post("/reset-password", async (req, res) => {
       });
     }
 
-    const passwordHash = await bcrypt.hash(
-      password,
-      10
-    );
+    const passwordHash = await bcrypt.hash(password, 10);
 
     await db.execute(
-      "UPDATE users SET password = ?, reset_password_token = NULL, reset_password_expires = NULL WHERE id = ?",
+      `UPDATE users
+       SET password = ?,
+           reset_password_token = NULL,
+           reset_password_expires = NULL
+       WHERE id = ?`,
       [passwordHash, users[0].id]
     );
 
     return res.json({
       success: true,
-      message:
-        "Password reset successful. You can now log in.",
+      message: "Password reset successful. You can now log in.",
     });
   } catch (error) {
     console.error("Reset password error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Server error while resetting password",
+      message: "Server error while resetting password",
     });
   }
 });
@@ -445,26 +439,13 @@ router.post("/reset-password", async (req, res) => {
 =========================================
 GOOGLE LOGIN
 GET /api/auth/google
-GET /api/auth/google/callback
-GET /api/auth/me
 =========================================
-*/
-
-/*
------------------------------------------
-START GOOGLE LOGIN
------------------------------------------
 */
 router.get("/google", (req, res) => {
   try {
-    const collegeId = Number(
-      req.query.college_id
-    );
+    const collegeId = Number(req.query.college_id);
 
-    if (
-      !Number.isInteger(collegeId) ||
-      collegeId <= 0
-    ) {
+    if (!Number.isInteger(collegeId) || collegeId <= 0) {
       return res.status(400).send(
         "Please select your college before Google login."
       );
@@ -476,27 +457,14 @@ router.get("/google", (req, res) => {
       process.env.GOOGLE_REDIRECT_URI
     );
 
-    /*
-    Store the selected college in OAuth state.
-
-    This is important because after Google authentication
-    we need to know which college the user selected.
-    */
-
     const state = Buffer.from(
-      JSON.stringify({
-        collegeId,
-      }),
+      JSON.stringify({ collegeId }),
       "utf8"
     ).toString("base64url");
 
     const authUrl = client.generateAuthUrl({
       access_type: "offline",
-      scope: [
-        "openid",
-        "email",
-        "profile",
-      ],
+      scope: ["openid", "email", "profile"],
       state,
       prompt: "select_account",
     });
@@ -513,358 +481,229 @@ router.get("/google", (req, res) => {
 });
 
 /*
------------------------------------------
+=========================================
 GOOGLE CALLBACK
------------------------------------------
+GET /api/auth/google/callback
+=========================================
 */
-router.get(
-  "/google/callback",
-  async (req, res) => {
-    try {
-      const { code, state } = req.query;
+router.get("/google/callback", async (req, res) => {
+  try {
+    const { code, state } = req.query;
 
-      if (!code) {
-        return res
-          .status(400)
-          .send(
-            "Google authorization code is missing."
-          );
-      }
-
-      /*
-      Recover selected college from OAuth state.
-      */
-
-      let collegeId = null;
-
-      if (state) {
-        try {
-          const decodedState = JSON.parse(
-            Buffer.from(
-              state,
-              "base64url"
-            ).toString("utf8")
-          );
-
-          collegeId = decodedState.collegeId
-            ? Number(decodedState.collegeId)
-            : null;
-        } catch (stateError) {
-          console.error(
-            "Google state error:",
-            stateError
-          );
-        }
-      }
-
-      /*
-      Google login also requires an active college.
-      */
-
-      if (
-        !Number.isInteger(collegeId) ||
-        collegeId <= 0
-      ) {
-        return res
-          .status(400)
-          .send(
-            "Please select your college before Google login."
-          );
-      }
-
-      /*
-      Verify that the selected college exists.
-      */
-
-      const [colleges] = await db.execute(
-        `SELECT id, name
-         FROM colleges
-         WHERE id = ?`,
-        [collegeId]
+    if (typeof code !== "string" || !code) {
+      return res.status(400).send(
+        "Google authorization code is missing."
       );
-
-      if (colleges.length === 0) {
-        return res
-          .status(400)
-          .send(
-            "Selected college was not found."
-          );
-      }
-
-      const selectedCollege = colleges[0];
-
-      const client = new OAuth2Client(
-        process.env.GOOGLE_CLIENT_ID,
-        process.env.GOOGLE_CLIENT_SECRET,
-        process.env.GOOGLE_REDIRECT_URI
-      );
-
-      const { tokens } =
-        await client.getToken(code);
-
-      client.setCredentials(tokens);
-
-      if (!tokens.id_token) {
-        return res
-          .status(400)
-          .send(
-            "Google ID token is missing."
-          );
-      }
-
-      const ticket =
-        await client.verifyIdToken({
-          idToken: tokens.id_token,
-          audience:
-            process.env.GOOGLE_CLIENT_ID,
-        });
-
-      const payload =
-        ticket.getPayload();
-
-      if (
-  !payload ||
-  !payload.email ||
-  payload.email_verified !== true
-) {
-  return res
-    .status(400)
-    .send(
-      "Unable to verify Google account. Please use a verified Google email."
-    );
-}
-
-      const email =
-        payload.email
-          .trim()
-          .toLowerCase();
-
-      const name =
-        payload.name ||
-        email.split("@")[0];
-
-      /*
-      Find existing account by email.
-
-      IMPORTANT:
-      We do NOT change users.college_id
-      when the user switches colleges.
-
-      The selected college becomes the active
-      college through the JWT.
-      */
-
-      const [existingUsers] =
-        await db.execute(
-          `SELECT
-            id,
-            name,
-            email,
-            mobile,
-            upi_id,
-            wallet_address
-           FROM users
-           WHERE email = ?`,
-          [email]
-        );
-
-      let user;
-
-      if (existingUsers.length > 0) {
-        user = existingUsers[0];
-      } else {
-        /*
-        New Google account.
-
-        We store the selected college as the
-        user's initial/default college.
-
-        Future logins can still use another
-        selected college without changing this value.
-        */
-
-        const generatedPassword =
-          crypto
-            .randomBytes(32)
-            .toString("hex");
-
-        const passwordHash =
-          await bcrypt.hash(
-            generatedPassword,
-            10
-          );
-
-        const [result] =
-          await db.execute(
-            `INSERT INTO users
-             (name, email, password, college_id)
-             VALUES (?, ?, ?, ?)`,
-            [
-              name,
-              email,
-              passwordHash,
-              collegeId,
-            ]
-          );
-
-        user = {
-          id: result.insertId,
-          name,
-          email,
-          mobile: null,
-          upi_id: null,
-          wallet_address: null,
-        };
-      }
-
-      /*
-      IMPORTANT:
-
-      Always use the currently selected college.
-
-      NEVER use user.college_id here.
-      */
-
-      const token = jwt.sign(
-        {
-          userId: user.id,
-          collegeId: collegeId,
-        },
-        JWT_SECRET,
-        {
-          expiresIn: "7d",
-        }
-      );
-
-      return res.redirect(
-        `${process.env.FRONTEND_URL}/login?google_token=${encodeURIComponent(
-          token
-        )}`
-      );
-    } catch (error) {
-      console.error(
-        "Google callback error:",
-        error
-      );
-
-      return res
-        .status(500)
-        .send(
-          "Google login failed. Please try again."
-        );
     }
-  }
-);
 
+    let collegeId = null;
+
+    if (typeof state === "string" && state) {
+      try {
+        const decodedState = JSON.parse(
+          Buffer.from(state, "base64url").toString("utf8")
+        );
+
+        collegeId = decodedState.collegeId
+          ? Number(decodedState.collegeId)
+          : null;
+      } catch (stateError) {
+        console.error("Google state error:", stateError);
+      }
+    }
+
+    if (!Number.isInteger(collegeId) || collegeId <= 0) {
+      return res.status(400).send(
+        "Please select your college before Google login."
+      );
+    }
+
+    const [colleges] = await db.execute(
+      `SELECT id, name
+       FROM colleges
+       WHERE id = ?`,
+      [collegeId]
+    );
+
+    if (colleges.length === 0) {
+      return res.status(400).send(
+        "Selected college was not found."
+      );
+    }
+
+    const client = new OAuth2Client(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI
+    );
+
+    const { tokens } = await client.getToken(code);
+
+    client.setCredentials(tokens);
+
+    if (!tokens.id_token) {
+      return res.status(400).send(
+        "Google ID token is missing."
+      );
+    }
+
+    const ticket = await client.verifyIdToken({
+      idToken: tokens.id_token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+
+    if (
+      !payload ||
+      !payload.email ||
+      payload.email_verified !== true
+    ) {
+      return res.status(400).send(
+        "Unable to verify Google account. Please use a verified Google email."
+      );
+    }
+
+    const email = payload.email.trim().toLowerCase();
+    const name = payload.name || email.split("@")[0];
+
+    const [existingUsers] = await db.execute(
+      `SELECT
+        id,
+        name,
+        email,
+        mobile,
+        upi_id,
+        wallet_address
+       FROM users
+       WHERE email = ?`,
+      [email]
+    );
+
+    let user;
+
+    if (existingUsers.length > 0) {
+      user = existingUsers[0];
+    } else {
+      const generatedPassword = crypto
+        .randomBytes(32)
+        .toString("hex");
+
+      const passwordHash = await bcrypt.hash(
+        generatedPassword,
+        10
+      );
+
+      const [result] = await db.execute(
+        `INSERT INTO users
+         (name, email, password, college_id)
+         VALUES (?, ?, ?, ?)`,
+        [name, email, passwordHash, collegeId]
+      );
+
+      user = {
+        id: result.insertId,
+        name,
+        email,
+        mobile: null,
+        upi_id: null,
+        wallet_address: null,
+      };
+    }
+
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        collegeId,
+      },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    const frontendUrl = process.env.FRONTEND_URL;
+
+    if (!frontendUrl) {
+      throw new Error("FRONTEND_URL is not configured");
+    }
+
+    return res.redirect(
+      `${frontendUrl.replace(/\/+$/, "")}/login?google_token=${encodeURIComponent(token)}`
+    );
+  } catch (error) {
+    console.error("Google callback error:", error);
+
+    return res.status(500).send(
+      "Google login failed. Please try again."
+    );
+  }
+});
 /*
 =========================================
 GET CURRENT USER
 GET /api/auth/me
 =========================================
-
-IMPORTANT:
-
-The active college comes from JWT.
-
-NOT from users.college_id.
-=========================================
 */
 router.get("/me", async (req, res) => {
   try {
-    const authHeader =
-      req.headers.authorization || "";
+    const authHeader = req.headers.authorization || "";
 
-    if (
-      !authHeader.startsWith(
-        "Bearer "
-      )
-    ) {
+    if (!authHeader.startsWith("Bearer ")) {
       return res.status(401).json({
         success: false,
-        message:
-          "Authorization token is required",
+        message: "Authorization token is required",
       });
     }
 
-    const token =
-      authHeader.substring(7);
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, JWT_SECRET);
 
-    const decoded =
-      jwt.verify(
-        token,
-        JWT_SECRET
-      );
-
-    if (
-      !decoded.userId ||
-      !decoded.collegeId
-    ) {
+    if (!decoded.userId || !decoded.collegeId) {
       return res.status(401).json({
         success: false,
-        message:
-          "Invalid active college session",
+        message: "Invalid active college session",
       });
     }
 
-    const activeCollegeId =
-      Number(decoded.collegeId);
+    const activeCollegeId = Number(decoded.collegeId);
 
     if (
-      !Number.isInteger(
-        activeCollegeId
-      ) ||
+      !Number.isInteger(activeCollegeId) ||
       activeCollegeId <= 0
     ) {
       return res.status(401).json({
         success: false,
-        message:
-          "Invalid active college",
+        message: "Invalid active college",
       });
     }
 
-    /*
-    Verify that the active college still exists.
-    */
-
-    const [colleges] =
-      await db.execute(
-        `SELECT id, name
-         FROM colleges
-         WHERE id = ?`,
-        [activeCollegeId]
-      );
+    const [colleges] = await db.execute(
+      `SELECT id, name
+       FROM colleges
+       WHERE id = ?`,
+      [activeCollegeId]
+    );
 
     if (colleges.length === 0) {
       return res.status(401).json({
         success: false,
-        message:
-          "Active college not found",
+        message: "Active college not found",
       });
     }
 
-    const activeCollege =
-      colleges[0];
+    const activeCollege = colleges[0];
 
-    /*
-    Get user information.
-
-    Notice that users.college_id is NOT
-    returned as the active college.
-    */
-
-    const [users] =
-      await db.execute(
-        `SELECT
-          u.id,
-          u.name,
-          u.email,
-          u.mobile,
-          u.upi_id,
-          u.wallet_address
-         FROM users u
-         WHERE u.id = ?`,
-        [decoded.userId]
-      );
+    const [users] = await db.execute(
+      `SELECT
+        id,
+        name,
+        email,
+        mobile,
+        upi_id,
+        wallet_address
+       FROM users
+       WHERE id = ?`,
+      [decoded.userId]
+    );
 
     if (users.length === 0) {
       return res.status(404).json({
@@ -883,27 +722,17 @@ router.get("/me", async (req, res) => {
         email: user.email,
         mobile: user.mobile || null,
         upi_id: user.upi_id || null,
-        wallet_address:
-          user.wallet_address || null,
-
-        /*
-        Active college from JWT
-        */
-
+        wallet_address: user.wallet_address || null,
         college_id: activeCollege.id,
         college: activeCollege.name,
       },
     });
   } catch (error) {
-    console.error(
-      "Get current user error:",
-      error
-    );
+    console.error("Get current user error:", error);
 
     return res.status(401).json({
       success: false,
-      message:
-        "Invalid or expired token",
+      message: "Invalid or expired token",
     });
   }
 });
@@ -928,14 +757,21 @@ router.put("/profile", async (req, res) => {
     if (!id || !name || !email) {
       return res.status(400).json({
         success: false,
-        message:
-          "ID, name and email are required",
+        message: "ID, name and email are required",
       });
     }
 
-    const cleanName = name.trim();
-    const cleanEmail =
-      email.trim().toLowerCase();
+    const userId = Number(id);
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID",
+      });
+    }
+
+    const cleanName = String(name).trim();
+    const cleanEmail = String(email).trim().toLowerCase();
 
     const cleanMobile =
       mobile !== undefined &&
@@ -948,9 +784,7 @@ router.put("/profile", async (req, res) => {
       upi_id !== undefined &&
       upi_id !== null &&
       String(upi_id).trim()
-        ? String(upi_id)
-            .trim()
-            .toLowerCase()
+        ? String(upi_id).trim().toLowerCase()
         : null;
 
     if (!cleanName) {
@@ -960,27 +794,22 @@ router.put("/profile", async (req, res) => {
       });
     }
 
-    const emailRegex =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(cleanEmail)) {
       return res.status(400).json({
         success: false,
-        message:
-          "Please enter a valid email address",
+        message: "Please enter a valid email address",
       });
     }
 
     if (
       cleanUpiId &&
-      !/^[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+$/.test(
-        cleanUpiId
-      )
+      !/^[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+$/.test(cleanUpiId)
     ) {
       return res.status(400).json({
         success: false,
-        message:
-          "Please enter a valid UPI ID",
+        message: "Please enter a valid UPI ID",
       });
     }
 
@@ -995,26 +824,25 @@ router.put("/profile", async (req, res) => {
     ) {
       return res.status(400).json({
         success: false,
-        message:
-          "Invalid wallet address",
+        message: "Invalid wallet address",
       });
     }
 
-    const [existingUsers] =
-      await db.execute(
-        "SELECT id FROM users WHERE email = ? AND id != ?",
-        [cleanEmail, id]
-      );
+    const [existingUsers] = await db.execute(
+      `SELECT id
+       FROM users
+       WHERE email = ? AND id != ?`,
+      [cleanEmail, userId]
+    );
 
     if (existingUsers.length > 0) {
       return res.status(409).json({
         success: false,
-        message:
-          "Email already registered by another user",
+        message: "Email already registered by another user",
       });
     }
 
-    await db.execute(
+    const [updateResult] = await db.execute(
       `UPDATE users
        SET name = ?,
            email = ?,
@@ -1028,24 +856,30 @@ router.put("/profile", async (req, res) => {
         cleanMobile,
         cleanUpiId,
         wallet_address || null,
-        id,
+        userId,
       ]
     );
 
-    const [users] =
-      await db.execute(
-        `SELECT
-          u.id,
-          u.name,
-          u.email,
-          u.mobile,
-          u.upi_id,
-          u.wallet_address,
-          u.college_id
-         FROM users u
-         WHERE u.id = ?`,
-        [id]
-      );
+    if (updateResult.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const [users] = await db.execute(
+      `SELECT
+        id,
+        name,
+        email,
+        mobile,
+        upi_id,
+        wallet_address,
+        college_id
+       FROM users
+       WHERE id = ?`,
+      [userId]
+    );
 
     if (users.length === 0) {
       return res.status(404).json({
@@ -1056,43 +890,25 @@ router.put("/profile", async (req, res) => {
 
     const user = users[0];
 
-    /*
-    We need the active college from the
-    current JWT, not users.college_id.
-
-    Profile update currently receives the user
-    ID in the body, so we keep the existing
-    endpoint behavior intact.
-    */
-
     return res.json({
       success: true,
-      message:
-        "Profile updated successfully",
+      message: "Profile updated successfully",
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
         mobile: user.mobile || null,
         upi_id: user.upi_id || null,
-        wallet_address:
-          user.wallet_address || null,
-
-        // Keep existing stored/default college
-        // in this response for compatibility.
+        wallet_address: user.wallet_address || null,
         college_id: user.college_id,
       },
     });
   } catch (error) {
-    console.error(
-      "Profile update error:",
-      error
-    );
+    console.error("Profile update error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Server error while updating profile",
+      message: "Server error while updating profile",
     });
   }
 });
