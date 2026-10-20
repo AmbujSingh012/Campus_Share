@@ -1,3 +1,4 @@
+
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -11,7 +12,7 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
 
 if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET is not configured in .env");
+  throw new Error("JWT_SECRET is not configured");
 }
 
 /*
@@ -22,7 +23,7 @@ POST /api/auth/register
 */
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, mobile, password, college_id } = req.body;
+    const { name, email, mobile, password, college_id } = req.body || {};
 
     if (!name || !email || !mobile || !password || !college_id) {
       return res.status(400).json({
@@ -50,9 +51,7 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!emailRegex.test(cleanEmail)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       return res.status(400).json({
         success: false,
         message: "Please enter a valid email address",
@@ -74,7 +73,7 @@ router.post("/register", async (req, res) => {
     }
 
     const [colleges] = await db.execute(
-      "SELECT id, name, email_domain FROM colleges WHERE id = ?",
+      "SELECT id, name FROM colleges WHERE id = ?",
       [collegeId]
     );
 
@@ -85,10 +84,8 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    const college = colleges[0];
-
     const [existingUsers] = await db.execute(
-      "SELECT id FROM users WHERE email = ?",
+      "SELECT id FROM users WHERE LOWER(TRIM(email)) = ?",
       [cleanEmail]
     );
 
@@ -129,12 +126,12 @@ router.post("/register", async (req, res) => {
         email: cleanEmail,
         mobile: cleanMobile,
         wallet_address: null,
-        college_id: college.id,
-        college: college.name,
+        college_id: colleges[0].id,
+        college: colleges[0].name,
       },
     });
   } catch (error) {
-    console.error("Registration error:", error);
+    console.error("Registration error:", error.message);
 
     return res.status(500).json({
       success: false,
@@ -150,8 +147,12 @@ POST /api/auth/login
 =========================================
 */
 router.post("/login", async (req, res) => {
+  const requestId = crypto.randomUUID();
+
   try {
-    const { email, password, college_id } = req.body;
+    const { email, password, college_id } = req.body || {};
+
+    console.log(`[LOGIN ${requestId}] Request received`);
 
     if (
       typeof email !== "string" ||
@@ -159,16 +160,26 @@ router.post("/login", async (req, res) => {
       typeof password !== "string" ||
       !password
     ) {
+      console.warn(`[LOGIN ${requestId}] Missing email or password`);
+
       return res.status(400).json({
         success: false,
         message: "Email and password are required",
+        requestId,
       });
     }
 
-    if (!college_id) {
+    if (
+      college_id === undefined ||
+      college_id === null ||
+      String(college_id).trim() === ""
+    ) {
+      console.warn(`[LOGIN ${requestId}] College ID missing`);
+
       return res.status(400).json({
         success: false,
         message: "Please select your college before login",
+        requestId,
       });
     }
 
@@ -178,79 +189,86 @@ router.post("/login", async (req, res) => {
       !Number.isInteger(selectedCollegeId) ||
       selectedCollegeId <= 0
     ) {
+      console.warn(`[LOGIN ${requestId}] Invalid college ID`);
+
       return res.status(400).json({
         success: false,
         message: "Invalid college selected",
+        requestId,
       });
     }
 
     const cleanEmail = email.trim().toLowerCase();
 
     const [colleges] = await db.execute(
-      `SELECT id, name
-       FROM colleges
-       WHERE id = ?`,
+      "SELECT id, name FROM colleges WHERE id = ?",
       [selectedCollegeId]
     );
 
     if (colleges.length === 0) {
+      console.warn(`[LOGIN ${requestId}] College not found`);
+
       return res.status(400).json({
         success: false,
         message: "Selected college not found",
+        requestId,
       });
     }
 
-    const selectedCollege = colleges[0];
-
     const [users] = await db.execute(
-      `SELECT
-        u.id,
-        u.name,
-        u.email,
-        u.mobile,
-        u.password,
-        u.wallet_address
-       FROM users u
-       WHERE LOWER(TRIM(u.email)) = ?`,
+      `SELECT id, name, email, mobile, password, wallet_address
+       FROM users
+       WHERE LOWER(TRIM(email)) = ?
+       LIMIT 1`,
       [cleanEmail]
     );
 
-    // Temporary diagnostics: never log the password or password hash.
-    console.log("[LOGIN DEBUG] Email lookup:", {
-      email: cleanEmail,
-      userFound: users.length > 0,
-      hasPasswordHash: Boolean(users[0] && users[0].password),
-    });
+    console.log(
+      `[LOGIN ${requestId}] User found: ${users.length > 0}`
+    );
 
     if (users.length === 0) {
+      console.warn(`[LOGIN ${requestId}] Returning 401: user not found`);
+
       return res.status(401).json({
         success: false,
         message: "Invalid email or password",
+        requestId,
       });
     }
 
     const user = users[0];
 
-    if (typeof user.password !== "string" || !user.password) {
-      console.error("[LOGIN DEBUG] User has no usable password hash.");
+    if (
+      typeof user.password !== "string" ||
+      !user.password.trim()
+    ) {
+      console.warn(
+        `[LOGIN ${requestId}] Returning 401: password hash missing`
+      );
 
       return res.status(401).json({
         success: false,
         message: "Invalid email or password",
+        requestId,
       });
     }
 
-    const passwordMatch = await bcrypt.compare(
-      password,
-      user.password
+    const passwordMatch = await bcrypt.compare(password, user.password);
+
+    console.log(
+      `[LOGIN ${requestId}] Password match: ${passwordMatch}`
     );
 
-    console.log("[LOGIN DEBUG] Password match:", passwordMatch);
-
     if (!passwordMatch) {
+      console.warn(
+        `[LOGIN ${requestId}] Returning 401: password mismatch`
+      );
+
       return res.status(401).json({
         success: false,
         message: "Invalid email or password",
+        requestId,
       });
     }
 
@@ -263,7 +281,9 @@ router.post("/login", async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    return res.json({
+    console.log(`[LOGIN ${requestId}] Token created successfully`);
+
+    return res.status(200).json({
       success: true,
       message: "Login successful",
       token,
@@ -274,18 +294,20 @@ router.post("/login", async (req, res) => {
         mobile: user.mobile || null,
         wallet_address: user.wallet_address || null,
         college_id: selectedCollegeId,
-        college: selectedCollege.name,
+        college: colleges[0].name,
       },
     });
   } catch (error) {
-    console.error("Login error:", error);
+    console.error(`[LOGIN ${requestId}] Login error:`, error.message);
 
     return res.status(500).json({
       success: false,
       message: "Server error during login",
+      requestId,
     });
   }
 });
+
 /*
 =========================================
 FORGOT PASSWORD
@@ -294,7 +316,7 @@ POST /api/auth/forgot-password
 */
 router.post("/forgot-password", async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email } = req.body || {};
 
     if (typeof email !== "string" || !email.trim()) {
       return res.status(400).json({
@@ -306,20 +328,18 @@ router.post("/forgot-password", async (req, res) => {
     const cleanEmail = email.trim().toLowerCase();
 
     const [users] = await db.execute(
-      "SELECT id, email FROM users WHERE email = ?",
+      "SELECT id, email FROM users WHERE LOWER(TRIM(email)) = ?",
       [cleanEmail]
     );
 
     if (users.length === 0) {
       return res.json({
         success: true,
-        message:
-          "If an account exists with this email, a reset link has been sent.",
+        message: "If an account exists with this email, a reset link has been sent.",
       });
     }
 
     const user = users[0];
-
     const rawToken = crypto.randomBytes(32).toString("hex");
 
     const hashedToken = crypto
@@ -348,11 +368,10 @@ router.post("/forgot-password", async (req, res) => {
 
     return res.json({
       success: true,
-      message:
-        "If an account exists with this email, a reset link has been sent.",
+      message: "If an account exists with this email, a reset link has been sent.",
     });
   } catch (error) {
-    console.error("Forgot password error:", error);
+    console.error("Forgot password error:", error.message);
 
     return res.status(500).json({
       success: false,
@@ -369,7 +388,7 @@ POST /api/auth/reset-password
 */
 router.post("/reset-password", async (req, res) => {
   try {
-    const { token, password } = req.body;
+    const { token, password } = req.body || {};
 
     if (
       typeof token !== "string" ||
@@ -426,7 +445,7 @@ router.post("/reset-password", async (req, res) => {
       message: "Password reset successful. You can now log in.",
     });
   } catch (error) {
-    console.error("Reset password error:", error);
+    console.error("Reset password error:", error.message);
 
     return res.status(500).json({
       success: false,
@@ -471,7 +490,7 @@ router.get("/google", (req, res) => {
 
     return res.redirect(authUrl);
   } catch (error) {
-    console.error("Google login error:", error);
+    console.error("Google login error:", error.message);
 
     return res.status(500).json({
       success: false,
@@ -508,7 +527,7 @@ router.get("/google/callback", async (req, res) => {
           ? Number(decodedState.collegeId)
           : null;
       } catch (stateError) {
-        console.error("Google state error:", stateError);
+        console.error("Google state error:", stateError.message);
       }
     }
 
@@ -519,9 +538,7 @@ router.get("/google/callback", async (req, res) => {
     }
 
     const [colleges] = await db.execute(
-      `SELECT id, name
-       FROM colleges
-       WHERE id = ?`,
+      "SELECT id, name FROM colleges WHERE id = ?",
       [collegeId]
     );
 
@@ -538,13 +555,10 @@ router.get("/google/callback", async (req, res) => {
     );
 
     const { tokens } = await client.getToken(code);
-
     client.setCredentials(tokens);
 
     if (!tokens.id_token) {
-      return res.status(400).send(
-        "Google ID token is missing."
-      );
+      return res.status(400).send("Google ID token is missing.");
     }
 
     const ticket = await client.verifyIdToken({
@@ -568,15 +582,10 @@ router.get("/google/callback", async (req, res) => {
     const name = payload.name || email.split("@")[0];
 
     const [existingUsers] = await db.execute(
-      `SELECT
-        id,
-        name,
-        email,
-        mobile,
-        upi_id,
-        wallet_address
+      `SELECT id, name, email, mobile, upi_id, wallet_address
        FROM users
-       WHERE email = ?`,
+       WHERE LOWER(TRIM(email)) = ?
+       LIMIT 1`,
       [email]
     );
 
@@ -585,14 +594,8 @@ router.get("/google/callback", async (req, res) => {
     if (existingUsers.length > 0) {
       user = existingUsers[0];
     } else {
-      const generatedPassword = crypto
-        .randomBytes(32)
-        .toString("hex");
-
-      const passwordHash = await bcrypt.hash(
-        generatedPassword,
-        10
-      );
+      const generatedPassword = crypto.randomBytes(32).toString("hex");
+      const passwordHash = await bcrypt.hash(generatedPassword, 10);
 
       const [result] = await db.execute(
         `INSERT INTO users
@@ -630,13 +633,14 @@ router.get("/google/callback", async (req, res) => {
       `${frontendUrl.replace(/\/+$/, "")}/login?google_token=${encodeURIComponent(token)}`
     );
   } catch (error) {
-    console.error("Google callback error:", error);
+    console.error("Google callback error:", error.message);
 
     return res.status(500).send(
       "Google login failed. Please try again."
     );
   }
 });
+
 /*
 =========================================
 GET CURRENT USER
@@ -677,9 +681,7 @@ router.get("/me", async (req, res) => {
     }
 
     const [colleges] = await db.execute(
-      `SELECT id, name
-       FROM colleges
-       WHERE id = ?`,
+      "SELECT id, name FROM colleges WHERE id = ?",
       [activeCollegeId]
     );
 
@@ -690,16 +692,8 @@ router.get("/me", async (req, res) => {
       });
     }
 
-    const activeCollege = colleges[0];
-
     const [users] = await db.execute(
-      `SELECT
-        id,
-        name,
-        email,
-        mobile,
-        upi_id,
-        wallet_address
+      `SELECT id, name, email, mobile, upi_id, wallet_address
        FROM users
        WHERE id = ?`,
       [decoded.userId]
@@ -723,12 +717,12 @@ router.get("/me", async (req, res) => {
         mobile: user.mobile || null,
         upi_id: user.upi_id || null,
         wallet_address: user.wallet_address || null,
-        college_id: activeCollege.id,
-        college: activeCollege.name,
+        college_id: colleges[0].id,
+        college: colleges[0].name,
       },
     });
   } catch (error) {
-    console.error("Get current user error:", error);
+    console.error("Get current user error:", error.message);
 
     return res.status(401).json({
       success: false,
@@ -752,7 +746,7 @@ router.put("/profile", async (req, res) => {
       mobile,
       upi_id,
       wallet_address,
-    } = req.body;
+    } = req.body || {};
 
     if (!id || !name || !email) {
       return res.status(400).json({
@@ -794,9 +788,7 @@ router.put("/profile", async (req, res) => {
       });
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!emailRegex.test(cleanEmail)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       return res.status(400).json({
         success: false,
         message: "Please enter a valid email address",
@@ -829,9 +821,7 @@ router.put("/profile", async (req, res) => {
     }
 
     const [existingUsers] = await db.execute(
-      `SELECT id
-       FROM users
-       WHERE email = ? AND id != ?`,
+      "SELECT id FROM users WHERE LOWER(TRIM(email)) = ? AND id != ?",
       [cleanEmail, userId]
     );
 
@@ -861,21 +851,21 @@ router.put("/profile", async (req, res) => {
     );
 
     if (updateResult.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
+      const [checkUsers] = await db.execute(
+        "SELECT id FROM users WHERE id = ?",
+        [userId]
+      );
+
+      if (checkUsers.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
     }
 
     const [users] = await db.execute(
-      `SELECT
-        id,
-        name,
-        email,
-        mobile,
-        upi_id,
-        wallet_address,
-        college_id
+      `SELECT id, name, email, mobile, upi_id, wallet_address, college_id
        FROM users
        WHERE id = ?`,
       [userId]
@@ -904,7 +894,7 @@ router.put("/profile", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Profile update error:", error);
+    console.error("Profile update error:", error.message);
 
     return res.status(500).json({
       success: false,
