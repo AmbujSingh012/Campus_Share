@@ -623,15 +623,16 @@ router.get(
         ticket.getPayload();
 
       if (
-        !payload ||
-        !payload.email
-      ) {
-        return res
-          .status(400)
-          .send(
-            "Unable to verify Google account."
-          );
-      }
+  !payload ||
+  !payload.email ||
+  payload.email_verified !== true
+) {
+  return res
+    .status(400)
+    .send(
+      "Unable to verify Google account. Please use a verified Google email."
+    );
+}
 
       const email =
         payload.email
