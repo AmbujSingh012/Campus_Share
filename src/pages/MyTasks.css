@@ -755,3 +755,20 @@
     font-size: 20px;
   }
 }
+/* Keep the Post Task button horizontal */
+.my-tasks-topbar .my-tasks-add-top {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  white-space: nowrap;
+  writing-mode: horizontal-tb;
+  width: auto;
+  min-width: max-content;
+}
+
+.my-tasks-topbar .my-tasks-add-top svg {
+  flex-shrink: 0;
+  display: inline-block;
+}
