@@ -772,3 +772,32 @@
   flex-shrink: 0;
   display: inline-block;
 }
+/* Keep the My Tasks Post button horizontal on mobile */
+@media (max-width: 700px) {
+  .my-tasks-topbar {
+    display: grid !important;
+    grid-template-columns: 44px minmax(0, 1fr) 36px !important;
+    grid-template-rows: 42px 42px !important;
+    align-items: center;
+  }
+
+  .my-tasks-topbar > .my-tasks-add-top {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+    justify-self: start !important;
+    align-self: start !important;
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: max-content !important;
+    min-width: max-content !important;
+    white-space: nowrap !important;
+    writing-mode: horizontal-tb !important;
+    margin: 0 !important;
+  }
+
+  .my-tasks-topbar > .my-tasks-add-top svg {
+    flex-shrink: 0;
+  }
+}
