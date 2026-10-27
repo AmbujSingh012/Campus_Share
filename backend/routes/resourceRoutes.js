@@ -912,7 +912,16 @@ router.post("/:id/borrow", async (req, res) => {
       });
     }
 
-    const [borrowedResource] =
+
+    // Record a successful direct resource exchange.
+    await db.execute(
+      `INSERT INTO resource_exchange_history
+        (resource_id, owner_id, borrower_id, college_id, borrow_method)
+       VALUES (?, ?, ?, ?, 'direct')`,
+      [resourceId, resource.user_id, borrowerId, collegeId]
+    );
+
+const [borrowedResource] =
       await db.execute(
         `
         SELECT
@@ -1082,7 +1091,28 @@ router.put("/:id/return", async (req, res) => {
       });
     }
 
-    res.json({
+
+    // Mark the matching exchange as returned.
+    const [historyResult] = await db.execute(
+      `UPDATE resource_exchange_history
+       SET returned_at = NOW()
+       WHERE resource_id = ?
+         AND owner_id = ?
+         AND borrower_id = ?
+         AND college_id = ?
+         AND returned_at IS NULL
+       ORDER BY id DESC
+       LIMIT 1`,
+      [resourceId, resource.owner_id, borrowerId, collegeId]
+    );
+
+    if (historyResult.affectedRows === 0) {
+      console.warn("No open exchange-history record found for returned resource", {
+        resourceId, ownerId: resource.owner_id, borrowerId, collegeId
+      });
+    }
+
+res.json({
       success: true,
       message:
         "Resource returned successfully",

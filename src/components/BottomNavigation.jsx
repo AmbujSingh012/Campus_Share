@@ -5,6 +5,8 @@ import {
   ListTodo,
   User,
   Bot,
+  Users,
+  MessageCircle,
 } from "lucide-react";
 
 import { useNavigate } from "react-router-dom";
@@ -49,6 +51,20 @@ function BottomNavigation({ active }) {
           <span>Tasks</span>
         </button>
 
+        <button
+          className={`nav-item ${active === "connections" ? "active" : ""}`}
+          onClick={() => navigate("/connections")}
+        >
+          <Users size={19} />
+          <span>Connect</span>
+        </button>
+        <button
+          className={`nav-item ${active === "chat" ? "active" : ""}`}
+          onClick={() => navigate("/chats")}
+        >
+          <MessageCircle size={19} />
+          <span>Chat</span>
+        </button>
         <button
           className={`nav-item ${active === "profile" ? "active" : ""}`}
           onClick={() => navigate("/profile")}

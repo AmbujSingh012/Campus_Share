@@ -9,6 +9,8 @@ import {
   Plus,
   ListTodo,
   User,
+  Users,
+  MessageCircle,
 } from "lucide-react";
 import NotificationBell from "./NotificationBell";
 import { useState } from "react";
@@ -23,14 +25,15 @@ function Header({
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const menuItems = [
-    { label: "Home", icon: Home, path: "/home" },
-    { label: "Resources", icon: BookOpen, path: "/resources" },
-    { label: "Post Resource", icon: Plus, path: "/post-resource" },
-    { label: "Tasks", icon: ListTodo, path: "/tasks" },
-    { label: "Profile", icon: User, path: "/profile" },
-  ];
-
+ const menuItems = [
+  { label: "Home", icon: Home, path: "/home" },
+  { label: "Resources", icon: BookOpen, path: "/resources" },
+  { label: "Post Resource", icon: Plus, path: "/post-resource" },
+  { label: "Tasks", icon: ListTodo, path: "/tasks" },
+  { label: "Connections", icon: Users, path: "/connections" },
+  { label: "Chats", icon: MessageCircle, path: "/chats" },
+  { label: "Profile", icon: User, path: "/profile" },
+];
   const handleNavigation = (path) => {
     setMenuOpen(false);
     navigate(path);

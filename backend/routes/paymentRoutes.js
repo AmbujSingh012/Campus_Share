@@ -1106,6 +1106,14 @@ router.post(
               razorpay_payment_id,
           });
         }
+
+        // Record a successful Razorpay resource exchange.
+        await db.execute(
+          `INSERT INTO resource_exchange_history
+            (resource_id, owner_id, borrower_id, college_id, borrow_method)
+           VALUES (?, ?, ?, ?, 'razorpay')`,
+          [payment.resource_id, payment.receiver_id, userId, activeCollegeId]
+        );
       }
 
       /*

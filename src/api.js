@@ -454,4 +454,116 @@ export async function markNotificationsRead() {
   return data;
 }
 
+/* =========================
+   COMMUNITY CONNECTIONS
+========================= */
+
+export async function getCommunityStudents(query = "") {
+  const params = new URLSearchParams();
+  if (query.trim()) params.set("q", query.trim());
+
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  const response = await fetch(
+    `${API_BASE_URL}/api/profile/discover${suffix}`,
+    { headers: getAuthHeaders() }
+  );
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to discover students");
+  }
+  return data;
+}
+
+export async function getCommunityConnections() {
+  const response = await fetch(
+    `${API_BASE_URL}/api/community/connections`,
+    { headers: getAuthHeaders() }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to load connections");
+  }
+
+  return data;
+}
+
+export async function requestCommunityConnection(recipientId) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/community/connections/request`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ recipientId: Number(recipientId) }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to send connection request");
+  }
+
+  return data;
+}
+
+export async function respondToConnection(connectionId, status) {
+  if (!["accepted", "rejected"].includes(status)) {
+    throw new Error("Invalid connection status");
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/community/connections/${connectionId}`,
+    {
+      method: "PATCH",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ status }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to update request");
+  }
+
+  return data;
+}
+
+export async function getCommunityMessages(connectionId) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/community/connections/${connectionId}/messages`,
+    { headers: getAuthHeaders() }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to load messages");
+  }
+
+  return data;
+}
+
+export async function sendCommunityMessage(connectionId, messageText) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/community/connections/${connectionId}/messages`,
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ messageText }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to send message");
+  }
+
+  return data;
+}
+
 export default API_BASE_URL;

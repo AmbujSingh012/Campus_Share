@@ -6,7 +6,7 @@ const crypto = require("crypto");
 const { sendPasswordResetEmail } = require("../utils/email");
 const { OAuth2Client } = require("google-auth-library");
 const db = require("../db");
-
+const authenticateToken = require("../middleware/authMiddleware");
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -737,61 +737,102 @@ UPDATE PROFILE
 PUT /api/auth/profile
 =========================================
 */
-router.put("/profile", async (req, res) => {
+
+router.put("/profile", authenticateToken, async (req, res) => {
   try {
+    const userId = Number(req.user?.userId);
+
+    if (!Number.isSafeInteger(userId) || userId <= 0) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
     const {
-      id,
       name,
       email,
       mobile,
       upi_id,
       wallet_address,
+      username,
+      bio,
+      department,
+      study_year,
     } = req.body || {};
-
-    if (!id || !name || !email) {
+const mobileWasProvided = Object.prototype.hasOwnProperty.call(req.body || {}, "mobile");
+const upiWasProvided = Object.prototype.hasOwnProperty.call(req.body || {}, "upi_id");
+    if (
+      typeof name !== "string" ||
+      !name.trim() ||
+      typeof email !== "string" ||
+      !email.trim()
+    ) {
       return res.status(400).json({
         success: false,
-        message: "ID, name and email are required",
+        message: "Name and email are required",
       });
     }
 
-    const userId = Number(id);
-
-    if (!Number.isInteger(userId) || userId <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid user ID",
-      });
-    }
-
-    const cleanName = String(name).trim();
-    const cleanEmail = String(email).trim().toLowerCase();
+    const cleanName = name.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanUsername =
+      typeof username === "string"
+        ? username.trim().toLowerCase()
+        : "";
+    const cleanBio = typeof bio === "string" ? bio.trim() : "";
+    const cleanDepartment =
+      typeof department === "string" ? department.trim() : "";
 
     const cleanMobile =
-      mobile !== undefined &&
-      mobile !== null &&
-      String(mobile).trim()
+      mobile != null && String(mobile).trim()
         ? String(mobile).trim()
         : null;
 
     const cleanUpiId =
-      upi_id !== undefined &&
-      upi_id !== null &&
-      String(upi_id).trim()
+      upi_id != null && String(upi_id).trim()
         ? String(upi_id).trim().toLowerCase()
         : null;
 
-    if (!cleanName) {
-      return res.status(400).json({
-        success: false,
-        message: "Name is required",
-      });
-    }
+    const cleanStudyYear =
+      study_year == null || String(study_year).trim() === ""
+        ? null
+        : Number(study_year);
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       return res.status(400).json({
         success: false,
         message: "Please enter a valid email address",
+      });
+    }
+
+    if (
+      cleanUsername &&
+      !/^[a-z0-9_]{3,30}$/.test(cleanUsername)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Username must be 3–30 characters using letters, numbers or underscores",
+      });
+    }
+
+    if (cleanBio.length > 500 || cleanDepartment.length > 120) {
+      return res.status(400).json({
+        success: false,
+        message: "Bio or department exceeds the allowed length",
+      });
+    }
+
+    if (
+      cleanStudyYear !== null &&
+      (!Number.isInteger(cleanStudyYear) ||
+        cleanStudyYear < 1 ||
+        cleanStudyYear > 8)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Study year must be between 1 and 8",
       });
     }
 
@@ -806,13 +847,10 @@ router.put("/profile", async (req, res) => {
     }
 
     if (
-      wallet_address !== undefined &&
-      wallet_address !== null &&
+      wallet_address != null &&
       wallet_address !== "" &&
-      (
-        typeof wallet_address !== "string" ||
-        wallet_address.length !== 58
-      )
+      (typeof wallet_address !== "string" ||
+        wallet_address.trim().length !== 58)
     ) {
       return res.status(400).json({
         success: false,
@@ -820,58 +858,82 @@ router.put("/profile", async (req, res) => {
       });
     }
 
-    const [existingUsers] = await db.execute(
-      "SELECT id FROM users WHERE LOWER(TRIM(email)) = ? AND id != ?",
+    const [existingEmails] = await db.execute(
+      "SELECT id FROM users WHERE LOWER(TRIM(email)) = ? AND id != ? LIMIT 1",
       [cleanEmail, userId]
     );
 
-    if (existingUsers.length > 0) {
+    if (existingEmails.length) {
       return res.status(409).json({
         success: false,
         message: "Email already registered by another user",
       });
     }
 
-    const [updateResult] = await db.execute(
-      `UPDATE users
-       SET name = ?,
-           email = ?,
-           mobile = ?,
-           upi_id = ?,
-           wallet_address = ?
-       WHERE id = ?`,
-      [
-        cleanName,
-        cleanEmail,
-        cleanMobile,
-        cleanUpiId,
-        wallet_address || null,
-        userId,
-      ]
-    );
-
-    if (updateResult.affectedRows === 0) {
-      const [checkUsers] = await db.execute(
-        "SELECT id FROM users WHERE id = ?",
-        [userId]
+    if (cleanUsername) {
+      const [existingUsernames] = await db.execute(
+        "SELECT id FROM users WHERE username = ? AND id != ? LIMIT 1",
+        [cleanUsername, userId]
       );
 
-      if (checkUsers.length === 0) {
-        return res.status(404).json({
+      if (existingUsernames.length) {
+        return res.status(409).json({
           success: false,
-          message: "User not found",
+          message: "That username is already taken",
         });
       }
     }
 
-    const [users] = await db.execute(
-      `SELECT id, name, email, mobile, upi_id, wallet_address, college_id
-       FROM users
+    // Preserve the existing wallet address when this request omits it.
+    const walletWasProvided =
+      Object.prototype.hasOwnProperty.call(
+        req.body || {},
+        "wallet_address"
+      );
+
+    await db.execute(
+      `UPDATE users
+       SET name = ?,
+           email = ?,
+           mobile = CASE WHEN ? = 1 THEN ? ELSE mobile END,
+          upi_id = CASE WHEN ? = 1 THEN ? ELSE upi_id END,
+           wallet_address = CASE
+             WHEN ? = 1 THEN ?
+             ELSE wallet_address
+           END,
+           username = ?,
+           bio = ?,
+           department = ?,
+           study_year = ?
        WHERE id = ?`,
+      [
+        cleanName,
+        cleanEmail,
+        mobileWasProvided ? 1 : 0,
+cleanMobile,
+upiWasProvided ? 1 : 0,
+cleanUpiId,
+        walletWasProvided ? 1 : 0,
+        wallet_address ? wallet_address.trim() : null,
+        cleanUsername || null,
+        cleanBio || null,
+        cleanDepartment || null,
+        cleanStudyYear,
+        userId,
+      ]
+    );
+
+    const [users] = await db.execute(
+      `SELECT
+         id, name, email, mobile, upi_id, wallet_address,
+         college_id, username, bio, department, study_year
+       FROM users
+       WHERE id = ?
+       LIMIT 1`,
       [userId]
     );
 
-    if (users.length === 0) {
+    if (!users.length) {
       return res.status(404).json({
         success: false,
         message: "User not found",
@@ -891,9 +953,21 @@ router.put("/profile", async (req, res) => {
         upi_id: user.upi_id || null,
         wallet_address: user.wallet_address || null,
         college_id: user.college_id,
+        username: user.username || null,
+        bio: user.bio || "",
+        department: user.department || "",
+        study_year:
+          user.study_year == null ? null : Number(user.study_year),
       },
     });
   } catch (error) {
+    if (error.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({
+        success: false,
+        message: "Username or email is already in use",
+      });
+    }
+
     console.error("Profile update error:", error.message);
 
     return res.status(500).json({
@@ -902,5 +976,6 @@ router.put("/profile", async (req, res) => {
     });
   }
 });
+
 
 module.exports = router;

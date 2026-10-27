@@ -1,4 +1,7 @@
 const path = require("path");
+const http = require("http");
+const jwt = require("jsonwebtoken");
+const { Server } = require("socket.io");
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
@@ -14,6 +17,8 @@ const paymentRoutes = require("./routes/paymentRoutes");
 const collegeRoutes = require("./routes/collegeRoutes");
 const ratingRoutes = require("./routes/ratingRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const communityRoutes = require("./routes/communityRoutes");
+const profilePhotoRoutes = require("./routes/profilePhotoRoutes");
 
 // =====================================================
 // OPTIONAL X402 IMPORTS
@@ -361,7 +366,8 @@ app.use(
   "/api/ratings",
   ratingRoutes
 );
-
+app.use("/api/profile-photos", profilePhotoRoutes);
+app.use("/api/community", communityRoutes);
 // =====================================================
 // 404 ROUTE
 // =====================================================
@@ -377,24 +383,98 @@ app.use((req, res) => {
 // START SERVER
 // =====================================================
 
-app.listen(PORT, async () => {
-  console.log(
-    `CampusShare Backend running on port ${PORT}`
-  );
+const httpServer = http.createServer(app);
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: true,
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+});
+
+app.set("io", io);
+
+// Authenticate sockets with the same JWT used by REST APIs.
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
+
+  if (!token) {
+    return next(new Error("Authentication required"));
+  }
 
   try {
-    const connection =
-      await db.getConnection();
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = Number(decoded.userId);
+    const collegeId = Number(decoded.collegeId);
 
-    console.log(
-      "MySQL connected successfully"
-    );
+    if (
+      !Number.isSafeInteger(userId) || userId <= 0 ||
+      !Number.isSafeInteger(collegeId) || collegeId <= 0
+    ) {
+      return next(new Error("Invalid user or college context"));
+    }
 
+    socket.data.user = { userId, collegeId };
+    next();
+  } catch {
+    next(new Error("Invalid or expired token"));
+  }
+});
+
+io.on("connection", (socket) => {
+  socket.on("join_chat", async (rawConnectionId, acknowledge) => {
+    const ack = typeof acknowledge === "function" ? acknowledge : () => {};
+    const connectionId = Number(rawConnectionId);
+    const { userId, collegeId } = socket.data.user || {};
+
+    if (!Number.isSafeInteger(connectionId) || connectionId <= 0) {
+      return ack({ success: false, message: "Invalid connection ID" });
+    }
+
+    try {
+      const [access] = await db.execute(
+        `SELECT id
+         FROM connections
+         WHERE id = ?
+           AND college_id = ?
+           AND status = 'accepted'
+           AND (requester_id = ? OR recipient_id = ?)
+         LIMIT 1`,
+        [connectionId, collegeId, userId, userId]
+      );
+
+      if (access.length === 0) {
+        return ack({
+          success: false,
+          message: "An accepted connection is required",
+        });
+      }
+
+      await socket.join(`chat:${connectionId}`);
+      ack({ success: true });
+    } catch (error) {
+      console.error("Socket join chat error:", error.message);
+      ack({ success: false, message: "Unable to join chat" });
+    }
+  });
+
+  socket.on("leave_chat", (rawConnectionId) => {
+    const connectionId = Number(rawConnectionId);
+    if (Number.isSafeInteger(connectionId) && connectionId > 0) {
+      socket.leave(`chat:${connectionId}`);
+    }
+  });
+});
+
+httpServer.listen(PORT, async () => {
+  console.log(`CampusShare Backend running on port ${PORT}`);
+
+  try {
+    const connection = await db.getConnection();
+    console.log("MySQL connected successfully");
     connection.release();
   } catch (error) {
-    console.error(
-      "MySQL connection failed:",
-      error.message
-    );
+    console.error("MySQL connection failed:", error.message);
   }
 });

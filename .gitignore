@@ -15,12 +15,17 @@ backend/routes/taskRoutes.js.save
 *.backup
 *.before-*
 *.save
+*.community-backup
+*.pre-google-fix
 
 # Uploaded resource images
 backend/uploads/resources/*.png
 
 # Local database backup
 campusshare_backup.sql
+backups/
+*.sql.backup
+*.sql.dump
 
 # Local Anaconda projects
 anaconda_projects/

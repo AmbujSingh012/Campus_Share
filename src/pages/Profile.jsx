@@ -30,6 +30,7 @@ function Profile() {
   );
 
   const [user, setUser] = useState(savedUser);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [activeSection, setActiveSection] = useState("profile");
 
   const [name, setName] = useState(
@@ -42,7 +43,12 @@ function Profile() {
   const [email, setEmail] = useState(savedUser?.email || "");
   const [mobile, setMobile] = useState(savedUser?.mobile || "");
 const [upiId, setUpiId] = useState(savedUser?.upi_id || "");
-
+const [username, setUsername] = useState(savedUser?.username || "");
+const [bio, setBio] = useState(savedUser?.bio || "");
+const [department, setDepartment] = useState(savedUser?.department || "");
+const [studyYear, setStudyYear] = useState(
+  savedUser?.study_year ? String(savedUser.study_year) : ""
+);
   const [notifications, setNotifications] = useState(true);
 
   const [transactions, setTransactions] = useState([]);
@@ -59,9 +65,16 @@ const [upiId, setUpiId] = useState(savedUser?.upi_id || "");
   try {
     if (!savedUser?.id) return;
 
-    const response = await fetch(
-      `${API_BASE_URL}/api/profile/${savedUser.id}`
-    );
+    const token = localStorage.getItem("token");
+
+const response = await fetch(
+  `${API_BASE_URL}/api/profile/${savedUser.id}`,
+  {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }
+);
 
     const data = await response.json();
 
@@ -95,6 +108,12 @@ const [upiId, setUpiId] = useState(savedUser?.upi_id || "");
     setEmail(updatedUser.email || "");
     setMobile(updatedUser.mobile || "");
     setUpiId(updatedUser.upi_id || "");
+    setUsername(updatedUser.username || "");
+setBio(updatedUser.bio || "");
+setDepartment(updatedUser.department || "");
+setStudyYear(
+  updatedUser.study_year ? String(updatedUser.study_year) : ""
+);
   } catch (error) {
     console.error(
       "Profile connection error:",
@@ -160,6 +179,68 @@ const [upiId, setUpiId] = useState(savedUser?.upi_id || "");
     }
   }, [activeSection]);
 
+
+  const handlePhotoUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!["image/jpeg", "image/png"].includes(file.type)) {
+      alert("Please choose a JPG or PNG image.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Photo size must be 5 MB or less.");
+      event.target.value = "";
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("photo", file);
+    setPhotoUploading(true);
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${API_BASE_URL}/api/profile-photos`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success || !data.profilePicture) {
+        alert(data.message || "Unable to upload profile photo.");
+        return;
+      }
+
+      const currentUser = JSON.parse(
+        localStorage.getItem("user") || "null"
+      ) || {};
+
+      const updatedUser = {
+        ...currentUser,
+        ...(user || {}),
+        profilePicture: data.profilePicture,
+        profile_picture: data.profilePicture,
+      };
+
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      setUser(updatedUser);
+      alert("Profile photo updated successfully!");
+    } catch (error) {
+      console.error("Profile photo upload error:", error);
+      alert("Upload failed. Please check your connection and try again.");
+    } finally {
+      setPhotoUploading(false);
+      event.target.value = "";
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -186,12 +267,15 @@ const [upiId, setUpiId] = useState(savedUser?.upi_id || "");
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            id: user.id,
-            name: name.trim(),
-            email: email.trim(),
-            mobile: mobile.trim() || null,
-            upi_id: upiId.trim() || null,
-          }),
+  name: name.trim(),
+  email: email.trim(),
+  mobile: mobile.trim() || null,
+  upi_id: upiId.trim() || null,
+  username: username.trim(),
+  bio: bio.trim(),
+  department: department.trim(),
+  study_year: studyYear ? Number(studyYear) : null,
+}),
         }
       );
 
@@ -211,10 +295,18 @@ const [upiId, setUpiId] = useState(savedUser?.upi_id || "");
       );
 
       setUser(data.user);
-      setName(data.user.name);
-      setEmail(data.user.email);
-      setMobile(data.user.mobile || "");
-      setUpiId(data.user.upi_id || "");
+setName(data.user.name || "");
+setEmail(data.user.email || "");
+setMobile(data.user.mobile || "");
+setUpiId(data.user.upi_id || "");
+setUsername(data.user.username || "");
+setBio(data.user.bio || "");
+setDepartment(data.user.department || "");
+setStudyYear(
+  data.user.study_year == null
+    ? ""
+    : String(data.user.study_year)
+);
 
       alert("Profile updated successfully!");
 
@@ -469,8 +561,24 @@ const ratingCount = Number(user.ratingCount || 0);
 
             <section className="profile-edit-card">
               <div className="profile-edit-avatar">
-                <UserRound size={32} />
+                {(user?.profilePicture || user?.profile_picture) ? (
+                  <img
+                    src={user.profilePicture || user.profile_picture}
+                    alt="Your profile"
+                  />
+                ) : (
+                  <UserRound size={32} />
+                )}
               </div>
+              <label className="profile-photo-upload">
+                {photoUploading ? "Uploading photo..." : "Change profile photo"}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  disabled={photoUploading}
+                  onChange={handlePhotoUpload}
+                />
+              </label>
 
               <div className="profile-form-grid">
                 <div className="profile-form-field full">
@@ -530,6 +638,54 @@ const ratingCount = Number(user.ratingCount || 0);
                     placeholder="example@upi"
                   />
                 </div>
+                <div className="profile-form-field">
+  <label>Username</label>
+  <input
+    type="text"
+    value={username}
+    onChange={(event) => setUsername(event.target.value)}
+    placeholder="e.g. utkarsh_27"
+    maxLength={30}
+  />
+  <small>3–30 characters: letters, numbers or underscores.</small>
+</div>
+
+<div className="profile-form-field">
+  <label>Department</label>
+  <input
+    type="text"
+    value={department}
+    onChange={(event) => setDepartment(event.target.value)}
+    placeholder="e.g. Computer Science"
+    maxLength={120}
+  />
+</div>
+
+<div className="profile-form-field">
+  <label>Study year</label>
+  <select
+    value={studyYear}
+    onChange={(event) => setStudyYear(event.target.value)}
+  >
+    <option value="">Select year</option>
+    <option value="1">1st year</option>
+    <option value="2">2nd year</option>
+    <option value="3">3rd year</option>
+    <option value="4">4th year</option>
+    <option value="5">5th year</option>
+  </select>
+</div>
+
+<div className="profile-form-field full">
+  <label>Bio</label>
+  <textarea
+    value={bio}
+    onChange={(event) => setBio(event.target.value)}
+    placeholder="Tell other students a little about yourself"
+    maxLength={500}
+    rows={3}
+  />
+</div>
               </div>
             </section>
 
@@ -716,7 +872,14 @@ const ratingCount = Number(user.ratingCount || 0);
           <section className="profile-hero">
             <div className="profile-hero-top">
               <div className="profile-big-avatar">
-                <UserRound size={40} />
+                {(user?.profilePicture || user?.profile_picture) ? (
+                  <img
+                    src={user.profilePicture || user.profile_picture}
+                    alt="Your profile"
+                  />
+                ) : (
+                  <UserRound size={40} />
+                )}
               </div>
 
               <div className="profile-hero-info">

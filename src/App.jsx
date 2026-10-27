@@ -18,6 +18,9 @@ import EditResource from "./pages/EditResource";
 import TransactionHistory from "./pages/TransactionHistory";
 import ConnectionDetails from "./pages/ConnectionDetails";
 import ResetPassword from "./pages/ResetPassword";
+import Connections from "./pages/Connections";
+import Chat from "./pages/Chat";
+import ChatInbox from "./pages/ChatInbox";
 function App() {
   return (
     <Routes>
@@ -31,6 +34,9 @@ function App() {
       <Route path="/resources/:id" element={<ResourceDetails />} />
       <Route path="/my-resources" element={<MyResources />} />
       <Route path="/my-tasks" element={<MyTasks />} />
+      <Route path="/connections" element={<Connections />} />
+      <Route path="/chats" element={<ChatInbox />} />
+        <Route path="/chat/:connectionId" element={<Chat />} />
       <Route
   path="/resources/:id/edit"
   element={<EditResource />}
@@ -53,6 +59,7 @@ function App() {
 
       <Route path="/task-payment" element={<TaskPayment />} />
     </Routes>
+
   );
 }
 
