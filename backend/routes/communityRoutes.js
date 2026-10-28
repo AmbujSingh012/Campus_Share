@@ -465,12 +465,21 @@ router.post("/connections/request", async (req, res) => {
       });
     }
 
-    const [result] = await db.execute(
-      `INSERT INTO connections
-         (requester_id, recipient_id, college_id, status)
-       VALUES (?, ?, ?, 'pending')`,
-      [context.userId, recipientId, context.collegeId]
-    );
+    const userLow = Math.min(context.userId, recipientId);
+const userHigh = Math.max(context.userId, recipientId);
+
+const [result] = await db.execute(
+  `INSERT INTO connections
+     (requester_id, recipient_id, college_id, user_low, user_high, status)
+   VALUES (?, ?, ?, ?, ?, 'pending')`,
+  [
+    context.userId,
+    recipientId,
+    context.collegeId,
+    userLow,
+    userHigh,
+  ]
+);
 
     return res.status(201).json({
       success: true,

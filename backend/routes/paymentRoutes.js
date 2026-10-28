@@ -661,115 +661,6 @@ router.post(
 
       /*
       ===============================================
-      ALREADY PAID
-      ===============================================
-
-      IMPORTANT:
-      Even if payments says "paid", make sure
-      acceptances is also updated.
-
-      This fixes old payments that were already
-      marked paid but MyTasks still showed
-      Payment Pending.
-      ===============================================
-      */
-
-      if (
-        String(
-          payment.status || ""
-        ).toLowerCase() ===
-        "paid"
-      ) {
-        if (
-          payment.task_id !== null
-        ) {
-          await db.execute(
-            `UPDATE acceptances
-             SET
-               payment_status = 'paid',
-               payment_transaction_id = ?,
-               payment_network = 'Razorpay',
-               payment_amount = ?,
-               paid_at = COALESCE(
-                 paid_at,
-                 NOW()
-               )
-             WHERE task_id = ?
-               AND helper_id = ?
-               AND status = 'accepted'
-             ORDER BY id DESC
-             LIMIT 1`,
-            [
-              payment.razorpay_payment_id ||
-                razorpay_payment_id,
-
-              Number(
-                payment.amount
-              ),
-
-              payment.task_id,
-
-              payment.receiver_id,
-            ]
-          );
-        }
-
-        return res.json({
-          success: true,
-
-          message:
-            "Payment already verified",
-
-          payment_id:
-            payment.id,
-
-          payment: {
-            id:
-              payment.id,
-
-            task_id:
-              payment.task_id,
-
-            resource_id:
-              payment.resource_id,
-
-            payer_id:
-              payment.payer_id,
-
-            receiver_id:
-              payment.receiver_id,
-
-            amount:
-              Number(
-                payment.amount
-              ),
-
-            status:
-              "paid",
-
-            payment_provider:
-              "razorpay",
-
-            razorpay_order_id:
-              payment.razorpay_order_id,
-
-            razorpay_payment_id:
-              payment.razorpay_payment_id ||
-              razorpay_payment_id,
-
-            transaction_id:
-              payment.razorpay_payment_id ||
-              razorpay_payment_id,
-          },
-
-          transaction_id:
-            payment.razorpay_payment_id ||
-            razorpay_payment_id,
-        });
-      }
-
-      /*
-      ===============================================
       VERIFY RAZORPAY SIGNATURE
       ===============================================
       */
@@ -790,22 +681,6 @@ router.post(
         expectedSignature !==
         razorpay_signature
       ) {
-        await db.execute(
-          `UPDATE payments
-           SET
-             status = 'failed',
-             razorpay_payment_id = ?,
-             razorpay_signature = ?
-           WHERE id = ?`,
-          [
-            razorpay_payment_id,
-
-            razorpay_signature,
-
-            payment.id,
-          ]
-        );
-
         return res.status(400).json({
           success: false,
           message:
@@ -885,6 +760,220 @@ router.post(
           success: false,
           message:
             `Payment is not captured. Current status: ${razorpayPayment.status}`,
+        });
+      }
+
+      /*
+      ===============================================
+      ALREADY PAID
+      ===============================================
+
+      IMPORTANT:
+      Even if payments says "paid", make sure
+      acceptances is also updated.
+
+      This fixes old payments that were already
+      marked paid but MyTasks still showed
+      Payment Pending.
+      ===============================================
+      */
+
+      if (
+        String(payment.status || "").toLowerCase() === "paid"
+      ) {
+        const savedPaymentId = payment.razorpay_payment_id;
+
+        // A retry must refer to the same payment already stored for this order.
+        if (
+          !savedPaymentId ||
+          !razorpay_payment_id ||
+          String(savedPaymentId) !== String(razorpay_payment_id)
+        ) {
+          return res.status(400).json({
+            success: false,
+            message: "The saved Razorpay payment ID is missing or does not match. Please contact support.",
+          });
+        }
+
+        if (payment.task_id !== null) {
+          await db.execute(
+            `UPDATE acceptances
+             SET payment_status = 'paid',
+                 payment_transaction_id = ?,
+                 payment_network = 'Razorpay',
+                 payment_amount = ?,
+                 paid_at = COALESCE(paid_at, NOW())
+             WHERE task_id = ?
+               AND helper_id = ?
+               AND status = 'accepted'
+             ORDER BY id DESC
+             LIMIT 1`,
+            [
+              savedPaymentId || razorpay_payment_id,
+              Number(payment.amount),
+              payment.task_id,
+              payment.receiver_id,
+            ]
+          );
+        }
+
+        if (payment.resource_id !== null) {
+          let connection;
+          let resourceConflict = false;
+
+          try {
+            connection = await db.getConnection();
+            await connection.beginTransaction();
+
+            const [resourceRows] = await connection.execute(
+              `SELECT id, user_id, availability, borrowed_by, college_id
+               FROM resources
+               WHERE id = ? AND college_id = ?
+               FOR UPDATE`,
+              [payment.resource_id, activeCollegeId]
+            );
+
+            if (resourceRows.length === 0) {
+  resourceConflict = true;
+} else {
+  const resource = resourceRows[0];
+
+  // Verify that the payment receiver is the actual resource owner.
+  if (Number(resource.user_id) !== Number(payment.receiver_id)) {
+    resourceConflict = true;
+  }
+
+  const availability = String(resource.availability || "").toLowerCase();
+
+              if (
+  !resourceConflict &&
+  availability === "borrowed" &&
+  Number(resource.borrowed_by) === Number(userId)
+) {
+                // Borrow already exists; repair history only if no open record exists.
+                const [historyRows] = await connection.execute(
+                  `SELECT id
+                   FROM resource_exchange_history
+                   WHERE resource_id = ?
+                     AND owner_id = ?
+                     AND borrower_id = ?
+                     AND college_id = ?
+                     AND returned_at IS NULL
+                   LIMIT 1`,
+                  [
+                    payment.resource_id,
+                    payment.receiver_id,
+                    userId,
+                    activeCollegeId,
+                  ]
+                );
+
+                if (historyRows.length === 0) {
+                  await connection.execute(
+                    `INSERT INTO resource_exchange_history
+                      (resource_id, owner_id, borrower_id, college_id, borrow_method)
+                     VALUES (?, ?, ?, ?, 'razorpay')`,
+                    [
+                      payment.resource_id,
+                      payment.receiver_id,
+                      userId,
+                      activeCollegeId,
+                    ]
+                  );
+                }
+              } else if (
+  !resourceConflict &&
+  availability === "available" &&
+                (resource.borrowed_by === null || resource.borrowed_by === undefined)
+              ) {
+                const [borrowResult] = await connection.execute(
+                  `UPDATE resources
+                   SET availability = 'Borrowed',
+                       borrowed_by = ?,
+                       borrowed_at = NOW()
+                   WHERE id = ?
+                     AND college_id = ?
+                     AND LOWER(COALESCE(availability, '')) = 'available'
+                     AND borrowed_by IS NULL`,
+                  [userId, payment.resource_id, activeCollegeId]
+                );
+
+                if (borrowResult.affectedRows === 0) {
+                  resourceConflict = true;
+                } else {
+                  await connection.execute(
+                    `INSERT INTO resource_exchange_history
+                      (resource_id, owner_id, borrower_id, college_id, borrow_method)
+                     VALUES (?, ?, ?, ?, 'razorpay')`,
+                    [
+                      payment.resource_id,
+                      payment.receiver_id,
+                      userId,
+                      activeCollegeId,
+                    ]
+                  );
+                }
+              } else {
+                resourceConflict = true;
+              }
+            }
+
+            if (resourceConflict) {
+              await connection.rollback();
+            } else {
+              await connection.commit();
+            }
+          } catch (resourceError) {
+            if (connection) {
+              try {
+                await connection.rollback();
+              } catch (rollbackError) {
+                console.error("Resource retry rollback failed:", rollbackError);
+              }
+            }
+
+            console.error("Paid resource retry failed:", resourceError);
+
+            return res.status(500).json({
+              success: false,
+              message:
+                "Payment is already recorded as paid, but resource processing needs support. Please contact support for assistance.",
+              payment_id: payment.id,
+              transaction_id: savedPaymentId || razorpay_payment_id,
+            });
+          } finally {
+            if (connection) connection.release();
+          }
+
+          if (resourceConflict) {
+            return res.status(409).json({
+              success: false,
+              message:
+                "Payment is recorded as paid, but this resource is unavailable to you. Please contact support for assistance with the payment or refund.",
+              payment_id: payment.id,
+              transaction_id: savedPaymentId || razorpay_payment_id,
+            });
+          }
+        }
+
+        return res.json({
+          success: true,
+          message: "Payment already verified",
+          payment_id: payment.id,
+          payment: {
+            id: payment.id,
+            task_id: payment.task_id,
+            resource_id: payment.resource_id,
+            payer_id: payment.payer_id,
+            receiver_id: payment.receiver_id,
+            amount: Number(payment.amount),
+            status: "paid",
+            payment_provider: "razorpay",
+            razorpay_order_id: payment.razorpay_order_id,
+            razorpay_payment_id: savedPaymentId || razorpay_payment_id,
+            transaction_id: savedPaymentId || razorpay_payment_id,
+          },
+          transaction_id: savedPaymentId || razorpay_payment_id,
         });
       }
 
@@ -1056,64 +1145,147 @@ router.post(
       ===============================================
       */
 
-      if (
-        payment.resource_id !==
-        null
-      ) {
-        const [
-          borrowResult,
-        ] = await db.execute(
-          `UPDATE resources
-           SET
-             availability = 'Borrowed',
-             borrowed_by = ?,
-             borrowed_at = NOW()
+      if (payment.resource_id !== null) {
+        let connection;
+        let resourceConflict = false;
 
-           WHERE id = ?
-             AND college_id = ?
+        try {
+          connection = await db.getConnection();
+          await connection.beginTransaction();
 
-             AND LOWER(
-               COALESCE(
-                 availability,
-                 ''
-               )
-             ) = 'available'
+          const [resourceRows] = await connection.execute(
+            `SELECT id, user_id, availability, borrowed_by, college_id
+             FROM resources
+             WHERE id = ? AND college_id = ?
+             FOR UPDATE`,
+            [payment.resource_id, activeCollegeId]
+          );
 
-             AND borrowed_by IS NULL`,
-          [
-            userId,
+          if (resourceRows.length === 0) {
+            resourceConflict = true;
+          } else {
+            const resource = resourceRows[0];
 
-            payment.resource_id,
+            // Verify the payment receiver is the actual resource owner.
+            if (Number(resource.user_id) !== Number(payment.receiver_id)) {
+              resourceConflict = true;
+            }
+            const availability = String(resource.availability || "").toLowerCase();
 
-            activeCollegeId,
-          ]
-        );
+            if (
+              !resourceConflict &&
+              availability === "borrowed" &&
+              Number(resource.borrowed_by) === Number(userId)
+            ) {
+              // A retry for an already-completed borrow must not duplicate
+              // its open history record.
+              const [historyRows] = await connection.execute(
+                `SELECT id
+                 FROM resource_exchange_history
+                 WHERE resource_id = ?
+                   AND owner_id = ?
+                   AND borrower_id = ?
+                   AND college_id = ?
+                   AND returned_at IS NULL
+                 ORDER BY id DESC
+                 LIMIT 1`,
+                [
+                  payment.resource_id,
+                  payment.receiver_id,
+                  userId,
+                  activeCollegeId,
+                ]
+              );
 
-        if (
-          borrowResult.affectedRows ===
-          0
-        ) {
-          return res.status(409).json({
+              if (historyRows.length === 0) {
+                await connection.execute(
+                  `INSERT INTO resource_exchange_history
+                    (resource_id, owner_id, borrower_id, college_id, borrow_method)
+                   VALUES (?, ?, ?, ?, 'razorpay')`,
+                  [
+                    payment.resource_id,
+                    payment.receiver_id,
+                    userId,
+                    activeCollegeId,
+                  ]
+                );
+              }
+            } else if (
+              !resourceConflict &&
+              availability === "available" &&
+              (resource.borrowed_by === null || resource.borrowed_by === undefined)
+            ) {
+              const [borrowResult] = await connection.execute(
+                `UPDATE resources
+                 SET availability = 'Borrowed',
+                     borrowed_by = ?,
+                     borrowed_at = NOW()
+                 WHERE id = ?
+                   AND college_id = ?
+                   AND LOWER(COALESCE(availability, '')) = 'available'
+                   AND borrowed_by IS NULL`,
+                [userId, payment.resource_id, activeCollegeId]
+              );
+
+              if (borrowResult.affectedRows === 0) {
+                resourceConflict = true;
+              } else {
+                await connection.execute(
+                  `INSERT INTO resource_exchange_history
+                    (resource_id, owner_id, borrower_id, college_id, borrow_method)
+                   VALUES (?, ?, ?, ?, 'razorpay')`,
+                  [
+                    payment.resource_id,
+                    payment.receiver_id,
+                    userId,
+                    activeCollegeId,
+                  ]
+                );
+              }
+            } else {
+              resourceConflict = true;
+            }
+          }
+
+          if (resourceConflict) {
+            await connection.rollback();
+          } else {
+            await connection.commit();
+          }
+        } catch (resourceError) {
+          if (connection) {
+            try {
+              await connection.rollback();
+            } catch (rollbackError) {
+              console.error("Resource transaction rollback failed:", rollbackError);
+            }
+          }
+
+          console.error(
+            "Razorpay resource borrow transaction failed:",
+            resourceError
+          );
+
+          return res.status(500).json({
             success: false,
-
             message:
-              "Payment was successful, but this resource is no longer available. Please contact support for the payment/refund.",
-
-            payment_id:
-              payment.id,
-
-            transaction_id:
-              razorpay_payment_id,
+              "Payment was captured, but the resource borrow could not be completed. Please contact support for assistance with the payment or refund.",
+            payment_id: payment.id,
+            transaction_id: razorpay_payment_id,
           });
+        } finally {
+          if (connection) connection.release();
         }
 
-        // Record a successful Razorpay resource exchange.
-        await db.execute(
-          `INSERT INTO resource_exchange_history
-            (resource_id, owner_id, borrower_id, college_id, borrow_method)
-           VALUES (?, ?, ?, ?, 'razorpay')`,
-          [payment.resource_id, payment.receiver_id, userId, activeCollegeId]
-        );
+        if (resourceConflict) {
+          return res.status(409).json({
+            success: false,
+            message:
+              "Payment was successful, but this resource is no longer available to you. Please contact support for assistance with the payment or refund.",
+            payment_id: payment.id,
+            transaction_id: razorpay_payment_id,
+          });
+        }
       }
 
       /*
@@ -1302,9 +1474,6 @@ router.post(
       const allowedStatuses =
         [
           "pending",
-          "paid",
-          "failed",
-          "completed",
         ];
 
       if (

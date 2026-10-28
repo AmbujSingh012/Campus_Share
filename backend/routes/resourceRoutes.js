@@ -793,10 +793,12 @@ console.log("RESOURCE IMAGE:", imageUrl);
 // =====================================================
 
 router.post("/:id/borrow", async (req, res) => {
+  let connection;
+
   try {
     const resourceId = Number(req.params.id);
 
-    if (!Number.isInteger(resourceId)) {
+    if (!Number.isInteger(resourceId) || resourceId <= 0) {
       return res.status(400).json({
         success: false,
         message: "Invalid resource ID",
@@ -813,9 +815,6 @@ router.post("/:id/borrow", async (req, res) => {
       });
     }
 
-    // IMPORTANT:
-    // The resource MUST belong to the active college.
-    // We check college_id directly in SQL.
     const [resources] = await db.execute(
       `
       SELECT
@@ -826,18 +825,12 @@ router.post("/:id/borrow", async (req, res) => {
         r.availability,
         r.borrowed_by,
         r.college_id,
-
         owner.name AS postedBy,
         owner.email AS ownerEmail,
         owner.mobile AS ownerMobile
-
       FROM resources r
-
-      JOIN users owner
-        ON r.user_id = owner.id
-
-      WHERE r.id = ?
-        AND r.college_id = ?
+      JOIN users owner ON r.user_id = owner.id
+      WHERE r.id = ? AND r.college_id = ?
       `,
       [resourceId, collegeId]
     );
@@ -852,14 +845,7 @@ router.post("/:id/borrow", async (req, res) => {
     const resource = resources[0];
 
     const [borrowerUsers] = await db.execute(
-      `
-      SELECT
-        id,
-        name,
-        email
-      FROM users
-      WHERE id = ?
-      `,
+      "SELECT id FROM users WHERE id = ?",
       [borrowerId]
     );
 
@@ -870,126 +856,121 @@ router.post("/:id/borrow", async (req, res) => {
       });
     }
 
-    // Owner cannot borrow their own resource
-    if (
-      Number(resource.user_id) ===
-      Number(borrowerId)
-    ) {
+    if (Number(resource.user_id) === Number(borrowerId)) {
       return res.status(403).json({
         success: false,
-        message:
-          "You cannot borrow your own resource",
+        message: "You cannot borrow your own resource",
       });
     }
 
-    const [result] = await db.execute(
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    const [result] = await connection.execute(
       `
       UPDATE resources
       SET
         availability = 'Borrowed',
         borrowed_by = ?,
         borrowed_at = NOW()
-
       WHERE id = ?
         AND college_id = ?
-        AND LOWER(
-          COALESCE(availability, '')
-        ) = 'available'
+        AND LOWER(COALESCE(availability, '')) = 'available'
         AND borrowed_by IS NULL
       `,
-      [
-        borrowerId,
-        resourceId,
-        collegeId,
-      ]
+      [borrowerId, resourceId, collegeId]
     );
 
     if (result.affectedRows === 0) {
+      await connection.rollback();
+
       return res.status(409).json({
         success: false,
-        message:
-          "This resource has already been borrowed or is unavailable",
+        message: "This resource has already been borrowed or is unavailable",
       });
     }
 
-
-    // Record a successful direct resource exchange.
-    await db.execute(
-      `INSERT INTO resource_exchange_history
+    await connection.execute(
+      `
+      INSERT INTO resource_exchange_history
         (resource_id, owner_id, borrower_id, college_id, borrow_method)
-       VALUES (?, ?, ?, ?, 'direct')`,
+      VALUES (?, ?, ?, ?, 'direct')
+      `,
       [resourceId, resource.user_id, borrowerId, collegeId]
     );
 
-const [borrowedResource] =
-      await db.execute(
-        `
-        SELECT
-          r.id,
-          r.user_id,
-          r.title,
-          r.description,
-          r.category,
-          r.location,
-          r.availability,
-          r.borrowing_fee,
-          r.college_id,
-          r.image_url,
-          r.created_at,
-          r.borrowed_by,
-          r.borrowed_at,
+    const [borrowedResource] = await connection.execute(
+      `
+      SELECT
+        r.id,
+        r.user_id,
+        r.title,
+        r.description,
+        r.category,
+        r.location,
+        r.availability,
+        r.borrowing_fee,
+        r.college_id,
+        r.image_url,
+        r.created_at,
+        r.borrowed_by,
+        r.borrowed_at,
+        owner.name AS postedBy,
+        owner.email AS ownerEmail,
+        owner.mobile AS ownerMobile,
+        borrower.name AS borrowedBy,
+        borrower.email AS borrowerEmail,
+        borrower.mobile AS borrowerMobile
+      FROM resources r
+      JOIN users owner ON r.user_id = owner.id
+      LEFT JOIN users borrower ON r.borrowed_by = borrower.id
+      WHERE r.id = ? AND r.college_id = ?
+      `,
+      [resourceId, collegeId]
+    );
 
-          owner.name AS postedBy,
-          owner.email AS ownerEmail,
-          owner.mobile AS ownerMobile,
+    await connection.commit();
 
-          borrower.name AS borrowedBy,
-          borrower.email AS borrowerEmail,
-          borrower.mobile AS borrowerMobile
-
-        FROM resources r
-
-        JOIN users owner
-          ON r.user_id = owner.id
-
-        LEFT JOIN users borrower
-          ON r.borrowed_by = borrower.id
-
-        WHERE r.id = ?
-          AND r.college_id = ?
-        `,
-        [resourceId, collegeId]
-      );
-
-    res.json({
+    return res.json({
       success: true,
       message: "Resource borrowed successfully",
       resource: borrowedResource[0],
     });
   } catch (error) {
-    console.error(
-      "Borrow resource error:",
-      error
-    );
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error("Borrow resource rollback error:", rollbackError);
+      }
+    }
 
-    res.status(500).json({
+    console.error("Borrow resource error:", error);
+
+    return res.status(500).json({
       success: false,
-      message:
-        "Server error while borrowing resource",
+      message: "Server error while borrowing resource",
     });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
   }
 });
 
 // =====================================================
+
 // RETURN RESOURCE
+
 // ONLY ACTIVE COLLEGE
-// =====================================================
 
 router.put("/:id/return", async (req, res) => {
+  let connection;
+
   try {
     const resourceId = Number(req.params.id);
 
-    if (!Number.isInteger(resourceId)) {
+    if (!Number.isInteger(resourceId) || resourceId <= 0) {
       return res.status(400).json({
         success: false,
         message: "Invalid resource ID",
@@ -1006,8 +987,6 @@ router.put("/:id/return", async (req, res) => {
       });
     }
 
-    // IMPORTANT:
-    // Resource must belong to ACTIVE COLLEGE.
     const [resources] = await db.execute(
       `
       SELECT
@@ -1016,12 +995,8 @@ router.put("/:id/return", async (req, res) => {
         borrowed_by,
         availability,
         college_id
-
       FROM resources
-
-      WHERE id = ?
-        AND college_id = ?
-
+      WHERE id = ? AND college_id = ?
       LIMIT 1
       `,
       [resourceId, collegeId]
@@ -1030,93 +1005,83 @@ router.put("/:id/return", async (req, res) => {
     if (resources.length === 0) {
       return res.status(404).json({
         success: false,
-        message:
-          "Resource not found in your college",
+        message: "Resource not found in your college",
       });
     }
 
     const resource = resources[0];
 
-    if (
-      Number(resource.borrowed_by) !==
-      Number(borrowerId)
-    ) {
+    if (Number(resource.borrowed_by) !== Number(borrowerId)) {
       return res.status(403).json({
         success: false,
-        message:
-          "Only the current borrower can return this resource",
+        message: "Only the current borrower can return this resource",
       });
     }
 
-    if (
-      String(resource.availability).toLowerCase() !==
-      "borrowed"
-    ) {
+    if (String(resource.availability).toLowerCase() !== "borrowed") {
       return res.status(400).json({
         success: false,
-        message:
-          "This resource is not currently borrowed",
+        message: "This resource is not currently borrowed",
       });
     }
 
-    // Borrowed -> Returned
-    const [result] = await db.execute(
+    // Update the resource and its history in one transaction.
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    const [result] = await connection.execute(
       `
       UPDATE resources
-
       SET
         availability = 'Returned',
         borrowed_by = NULL,
         borrowed_at = NULL
-
       WHERE id = ?
         AND college_id = ?
         AND borrowed_by = ?
-        AND LOWER(
-          COALESCE(availability, '')
-        ) = 'borrowed'
+        AND LOWER(COALESCE(availability, '')) = 'borrowed'
       `,
-      [
-        resourceId,
-        collegeId,
-        borrowerId,
-      ]
+      [resourceId, collegeId, borrowerId]
     );
 
     if (result.affectedRows === 0) {
+      await connection.rollback();
+
       return res.status(409).json({
         success: false,
-        message:
-          "Resource was already returned or its status changed",
+        message: "Resource was already returned or its status changed",
       });
     }
 
-
-    // Mark the matching exchange as returned.
-    const [historyResult] = await db.execute(
-      `UPDATE resource_exchange_history
-       SET returned_at = NOW()
-       WHERE resource_id = ?
-         AND owner_id = ?
-         AND borrower_id = ?
-         AND college_id = ?
-         AND returned_at IS NULL
-       ORDER BY id DESC
-       LIMIT 1`,
+    const [historyResult] = await connection.execute(
+      `
+      UPDATE resource_exchange_history
+      SET returned_at = NOW()
+      WHERE resource_id = ?
+        AND owner_id = ?
+        AND borrower_id = ?
+        AND college_id = ?
+        AND returned_at IS NULL
+      ORDER BY id DESC
+      LIMIT 1
+      `,
       [resourceId, resource.owner_id, borrowerId, collegeId]
     );
 
+    // Older borrows may predate the history table.
+    // Allow those returns, but log the missing history record.
     if (historyResult.affectedRows === 0) {
-      console.warn("No open exchange-history record found for returned resource", {
-        resourceId, ownerId: resource.owner_id, borrowerId, collegeId
-      });
+      console.warn(
+        "No open exchange-history record found for returned resource",
+        { resourceId, ownerId: resource.owner_id, borrowerId, collegeId }
+      );
     }
 
-res.json({
-      success: true,
-      message:
-        "Resource returned successfully",
+    await connection.commit();
 
+    return res.json({
+      success: true,
+      message: "Resource returned successfully",
       resource: {
         id: resourceId,
         status: "Returned",
@@ -1126,22 +1091,33 @@ res.json({
       },
     });
   } catch (error) {
-    console.error(
-      "Return resource error:",
-      error
-    );
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error("Return resource rollback error:", rollbackError);
+      }
+    }
 
-    res.status(500).json({
+    console.error("Return resource error:", error);
+
+    return res.status(500).json({
       success: false,
-      message:
-        "Server error while returning resource",
+      message: "Server error while returning resource",
     });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
   }
 });
 
 // =====================================================
+
 // UPDATE RESOURCE
+
 // ONLY OWNER + ACTIVE COLLEGE
+
 // =====================================================
 
 router.put("/:id", async (req, res) => {
