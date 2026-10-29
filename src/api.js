@@ -162,7 +162,17 @@ export async function createResource(resourceData) {
     "borrowingFee",
     resourceData.borrowingFee || "0"
   );
+formData.append(
+  "duration",
+  resourceData.duration || "30 Minutes"
+);
 
+if (resourceData.expiryDate) {
+  formData.append(
+    "expiryDate",
+    resourceData.expiryDate
+  );
+}
   if (resourceData.image) {
     formData.append(
       "image",

@@ -702,27 +702,49 @@ function Tasks() {
                             "A quick task dropped by a fellow student."}
                         </p>
 
-                        <div className="tasks-card-meta">
+<div className="tasks-card-meta">
+  <span>
+    <MapPin size={15} />
+    {task.location || "Campus"}
+  </span>
+  <span>
+    <CalendarDays size={15} />
+    {task.deadline || "No deadline"}
+  </span>
+  <span>
+    <Clock3 size={15} />
+    {(() => {
+      const duration = String(task.duration || "30 Minutes").trim();
 
-                          <span>
-                            <MapPin
-                              size={15}
-                            />
+      if (duration.toLowerCase() === "permanent") {
+        return "Duration: Permanent";
+      }
 
-                            {task.location ||
-                              "Campus"}
-                          </span>
+      const minutesMatch = duration.match(/^(\d+)\s*minutes?$/i);
 
-                          <span>
-                            <CalendarDays
-                              size={15}
-                            />
+      if (minutesMatch) {
+        const totalMinutes = Number(minutesMatch[1]);
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
 
-                            {task.deadline ||
-                              "No deadline"}
-                          </span>
+        const parts = [];
 
-                        </div>
+        if (hours > 0) {
+          parts.push(`${hours} ${hours === 1 ? "hour" : "hours"}`);
+        }
+
+        if (minutes > 0) {
+          parts.push(`${minutes} ${minutes === 1 ? "minute" : "minutes"}`);
+        }
+
+        return `Duration: ${parts.join(" ") || "0 minutes"}`;
+      }
+
+      return `Duration: ${duration}`;
+    })()}
+  </span>
+</div>
+
 
                         <div className="tasks-divider"></div>
 

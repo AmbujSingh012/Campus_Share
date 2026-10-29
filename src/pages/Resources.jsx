@@ -724,37 +724,21 @@ function Resources() {
                       key={resource.id}
                     >
                       <ResourceCard
-                        name={resource.title}
-                        description={
-                          resource.description
-                        }
-                        category={
-                          resource.category ||
-                          "Not specified"
-                        }
-                        owner={
-                          resource.postedBy ||
-                          "Unknown"
-                        }
-                        rating={
-                          resource.averageRating >
-                          0
-                            ? resource.averageRating
-                            : "No ratings"
-                        }
-                        location={
-                          resource.location ||
-                          "Not specified"
-                        }
-                        imageUrl={
-                          resource.image_url
-                        }
-                        onBorrow={() =>
-                          handleBorrow(
-                            resource
-                          )
-                        }
-                      />
+  name={resource.title}
+  category={resource.category || "Not specified"}
+  owner={resource.postedBy || "Student"}
+  rating={
+    resource.averageRating > 0
+      ? resource.averageRating
+      : "New"
+  }
+  location={resource.location || "Campus"}
+  imageUrl={resource.image_url}
+  availability={resource.availability}
+  borrowedBy={resource.borrowed_by}
+  duration={resource.duration}
+  onBorrow={() => handleBorrow(resource)}
+/>
 
                       <div className="resources-item-details">
 
@@ -784,7 +768,13 @@ function Resources() {
                           {resource.description ||
                             "A useful resource shared by a fellow student."}
                         </p>
-
+                        {resource.duration && (
+  <p className="resources-description">
+    Duration: {resource.duration === "Permanent"
+      ? "Permanent"
+      : resource.duration}
+  </p>
+)}
                         <div className="resources-owner-row">
                           <div className="resources-avatar">
                             {String(

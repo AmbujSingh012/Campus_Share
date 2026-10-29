@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 
 import {
@@ -9,6 +8,7 @@ import {
   Phone,
   ShieldCheck,
   Sparkles,
+  Clock3,
 } from "lucide-react";
 
 import { useNavigate } from "react-router-dom";
@@ -30,6 +30,11 @@ function PostTask() {
   const [location, setLocation] = useState("");
   const [meetingTime, setMeetingTime] = useState("");
 
+  // Duration: custom hours/minutes or permanent.
+  const [durationMode, setDurationMode] = useState("custom");
+  const [durationHours, setDurationHours] = useState("0");
+  const [durationMinutes, setDurationMinutes] = useState("30");
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -43,7 +48,6 @@ function PostTask() {
   );
 
   // Mobile number from Profile, if available.
-  // If there is no mobile number, the user can enter one here.
   const [mobile, setMobile] = useState(
     savedUser?.mobile || ""
   );
@@ -79,12 +83,53 @@ function PostTask() {
       return;
     }
 
+    if (new Date(deadline).getTime() <= Date.now()) {
+      setError("The task deadline must be in the future.");
+      return;
+    }
+
     if (!location.trim()) {
       setError("Please enter a location.");
       return;
     }
 
-    // Mobile number is required.
+    // Validate the custom duration.
+    let durationValue;
+
+    if (durationMode === "permanent") {
+      durationValue = "Permanent";
+    } else {
+      const hours = Number(durationHours);
+      const minutes = Number(durationMinutes);
+
+      if (
+        durationHours.trim() === "" ||
+        durationMinutes.trim() === "" ||
+        !Number.isSafeInteger(hours) ||
+        !Number.isInteger(minutes) ||
+        hours < 0 ||
+        minutes < 0 ||
+        minutes > 59 ||
+        hours * 60 + minutes <= 0 ||
+        !Number.isSafeInteger(hours * 60 + minutes)
+      ) {
+        setError(
+          "Enter a valid duration. Hours must be zero or greater, minutes must be between 0 and 59, and the total duration must be greater than zero."
+        );
+        return;
+      }
+
+      durationValue = `${hours * 60 + minutes} Minutes`;
+    }
+
+    if (
+      meetingTime &&
+      new Date(meetingTime).getTime() < Date.now()
+    ) {
+      setError("The preferred meeting time cannot be in the past.");
+      return;
+    }
+
     if (!mobile.trim()) {
       setError(
         "Mobile number is required. Please enter your mobile number."
@@ -92,7 +137,6 @@ function PostTask() {
       return;
     }
 
-    // Indian mobile number validation.
     if (!/^[6-9]\d{9}$/.test(String(mobile))) {
       setError(
         "Please enter a valid 10-digit Indian mobile number."
@@ -120,6 +164,7 @@ function PostTask() {
         location: location.trim(),
         meeting_time: meetingTime || null,
         mobile: String(mobile),
+        duration: durationValue,
       });
 
       if (!data.success) {
@@ -128,14 +173,7 @@ function PostTask() {
         );
       }
 
-      /*
-       * Save the mobile number in localStorage as well.
-       *
-       * This means:
-       * - If the user entered it directly on Post Task,
-       *   it will be available the next time.
-       * - Existing profile information is preserved.
-       */
+      // Preserve the mobile number in localStorage.
       const currentUser = JSON.parse(
         localStorage.getItem("user") || "null"
       );
@@ -161,6 +199,9 @@ function PostTask() {
       setDeadline("");
       setLocation("");
       setMeetingTime("");
+      setDurationMode("custom");
+      setDurationHours("0");
+      setDurationMinutes("30");
 
       setTimeout(() => {
         navigate("/tasks");
@@ -192,7 +233,6 @@ function PostTask() {
 
           <div className="post-task-campus">
             <span className="post-task-campus-dot"></span>
-
             <span>
               {selectedCollege?.name || "Your Campus"}
             </span>
@@ -201,6 +241,7 @@ function PostTask() {
           <div className="post-task-top-label">
             Micro-task
           </div>
+
           <NotificationBell />
         </header>
 
@@ -233,10 +274,7 @@ function PostTask() {
 
               <div>
                 <strong>{message}</strong>
-
-                <span>
-                  Taking you back to tasks...
-                </span>
+                <span>Taking you back to tasks...</span>
               </div>
             </div>
           )}
@@ -244,7 +282,6 @@ function PostTask() {
           {error && (
             <div className="post-task-error">
               <strong>Couldn&apos;t post task</strong>
-
               <span>{error}</span>
             </div>
           )}
@@ -257,7 +294,6 @@ function PostTask() {
               <div className="post-task-section-heading">
                 <div>
                   <span>01</span>
-
                   <h2>What do you need?</h2>
                 </div>
 
@@ -292,29 +328,12 @@ function PostTask() {
                     }
                     disabled={loading}
                   >
-                    <option value="">
-                      Select category
-                    </option>
-
-                    <option value="Academic">
-                      Academic
-                    </option>
-
-                    <option value="Programming">
-                      Programming
-                    </option>
-
-                    <option value="Delivery">
-                      Delivery
-                    </option>
-
-                    <option value="Campus Help">
-                      Campus Help
-                    </option>
-
-                    <option value="Other">
-                      Other
-                    </option>
+                    <option value="">Select category</option>
+                    <option value="Academic">Academic</option>
+                    <option value="Programming">Programming</option>
+                    <option value="Delivery">Delivery</option>
+                    <option value="Campus Help">Campus Help</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
 
@@ -365,7 +384,6 @@ function PostTask() {
               <div className="post-task-section-heading">
                 <div>
                   <span>02</span>
-
                   <h2>Set the details</h2>
                 </div>
 
@@ -376,6 +394,80 @@ function PostTask() {
               </div>
 
               <div className="post-task-fields">
+                {/* Custom duration */}
+                <div className="post-task-field full">
+                  <label>
+                    <Clock3 size={14} />
+                    Duration
+                  </label>
+
+                  <select
+                    value={durationMode}
+                    onChange={(event) =>
+                      setDurationMode(event.target.value)
+                    }
+                    disabled={loading}
+                  >
+                    <option value="custom">
+                      Custom duration
+                    </option>
+                    <option value="permanent">
+                      Permanent
+                    </option>
+                  </select>
+
+                  {durationMode === "custom" ? (
+                    <>
+                      <div className="post-task-fields">
+                        <div className="post-task-field">
+                          <label>Hours</label>
+
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            inputMode="numeric"
+                            placeholder="0"
+                            value={durationHours}
+                            onChange={(event) =>
+                              setDurationHours(event.target.value)
+                            }
+                            disabled={loading}
+                          />
+                        </div>
+
+                        <div className="post-task-field">
+                          <label>Minutes</label>
+
+                          <input
+                            type="number"
+                            min="0"
+                            max="59"
+                            step="1"
+                            inputMode="numeric"
+                            placeholder="30"
+                            value={durationMinutes}
+                            onChange={(event) =>
+                              setDurationMinutes(event.target.value)
+                            }
+                            disabled={loading}
+                          />
+                        </div>
+                      </div>
+
+                      <small>
+                        Choose any duration greater than zero.
+                        For example, 2 hours and 30 minutes.
+                        Minutes must be between 0 and 59.
+                      </small>
+                    </>
+                  ) : (
+                    <small>
+                      Permanent means no duration limit.
+                    </small>
+                  )}
+                </div>
+
                 <div className="post-task-field">
                   <label>
                     <CalendarClock size={14} />
@@ -390,6 +482,11 @@ function PostTask() {
                     }
                     disabled={loading}
                   />
+
+                  <small>
+                    The latest time by which the task should
+                    be completed.
+                  </small>
                 </div>
 
                 <div className="post-task-field">
@@ -436,13 +533,10 @@ function PostTask() {
               </div>
             </section>
 
-            {/* NEW MOBILE NUMBER SECTION */}
-
             <section className="post-task-card">
               <div className="post-task-section-heading">
                 <div>
                   <span>03</span>
-
                   <h2>Contact details</h2>
                 </div>
 
@@ -455,7 +549,8 @@ function PostTask() {
               <div className="post-task-fields">
                 <div className="post-task-field full">
                   <label>
-                    <Phone size={14} /> Mobile number
+                    <Phone size={14} />
+                    Mobile number
                   </label>
 
                   <input
@@ -507,9 +602,7 @@ function PostTask() {
                 className="post-task-submit"
                 disabled={loading}
               >
-                {loading
-                  ? "Posting task..."
-                  : "Post task"}
+                {loading ? "Posting task..." : "Post task"}
               </button>
             </div>
           </form>

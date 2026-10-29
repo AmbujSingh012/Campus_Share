@@ -1,13 +1,16 @@
 
 import { useState } from "react";
+
 import {
   ArrowLeft,
+  Clock3,
   ImagePlus,
   MapPin,
   PackagePlus,
   ShieldCheck,
   Wallet,
 } from "lucide-react";
+
 import { useNavigate } from "react-router-dom";
 import BottomNavigation from "../components/BottomNavigation";
 import NotificationBell from "../components/NotificationBell";
@@ -24,6 +27,11 @@ function PostResource() {
   const [condition, setCondition] = useState("Excellent");
   const [availability, setAvailability] = useState(true);
   const [borrowingFee, setBorrowingFee] = useState("");
+
+  const [durationMode, setDurationMode] = useState("custom");
+  const [durationHours, setDurationHours] = useState("0");
+  const [durationMinutes, setDurationMinutes] = useState("30");
+
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,11 +47,7 @@ function PostResource() {
 
     if (!file) return;
 
-    const allowedTypes = [
-      "image/png",
-      "image/jpeg",
-      "image/jpg",
-    ];
+    const allowedTypes = ["image/png", "image/jpeg"];
 
     if (!allowedTypes.includes(file.type)) {
       setError("Please select a PNG or JPG image.");
@@ -88,6 +92,44 @@ function PostResource() {
       return;
     }
 
+    let durationValue;
+
+    if (durationMode === "permanent") {
+      durationValue = "Permanent";
+    } else {
+      const hours = Number(durationHours);
+      const minutes = Number(durationMinutes);
+      const totalMinutes = hours * 60 + minutes;
+
+      if (
+        durationHours.trim() === "" ||
+        durationMinutes.trim() === "" ||
+        !Number.isSafeInteger(hours) ||
+        !Number.isSafeInteger(minutes) ||
+        hours < 0 ||
+        minutes < 0 ||
+        minutes > 59 ||
+        !Number.isSafeInteger(totalMinutes) ||
+        totalMinutes <= 0
+      ) {
+        setError(
+          "Enter a valid duration. Hours must be zero or greater, minutes must be between 0 and 59, and the total duration must be greater than zero."
+        );
+        return;
+      }
+
+      durationValue = `${totalMinutes} Minutes`;
+    }
+
+    if (borrowingFee.trim() !== "") {
+      const fee = Number(borrowingFee);
+
+      if (!Number.isFinite(fee) || fee < 0) {
+        setError("Please enter a valid borrowing fee.");
+        return;
+      }
+    }
+
     const token = localStorage.getItem("token");
 
     if (!token) {
@@ -104,11 +146,10 @@ function PostResource() {
         description: description.trim(),
         category,
         location: location.trim(),
-        availability: availability
-          ? "Available"
-          : "Unavailable",
+        availability: availability ? "Available" : "Unavailable",
         condition,
         borrowingFee,
+        duration: durationValue,
         image,
       });
 
@@ -127,6 +168,9 @@ function PostResource() {
       setCondition("Excellent");
       setAvailability(true);
       setBorrowingFee("");
+      setDurationMode("custom");
+      setDurationHours("0");
+      setDurationMinutes("30");
       setImage(null);
       setImagePreview("");
 
@@ -165,9 +209,7 @@ function PostResource() {
             </span>
           </div>
 
-          <div className="post-resource-top-label">
-            Share
-          </div>
+          <div className="post-resource-top-label">Share</div>
 
           <NotificationBell />
         </header>
@@ -233,7 +275,7 @@ function PostResource() {
               <label className="post-resource-upload">
                 <input
                   type="file"
-                  accept="image/png,image/jpeg,image/jpg"
+                  accept="image/png,image/jpeg"
                   onChange={handleImageChange}
                   disabled={loading}
                 />
@@ -257,10 +299,7 @@ function PostResource() {
                     </div>
 
                     <strong>Upload a resource photo</strong>
-
-                    <span>
-                      PNG or JPG · Maximum 5MB
-                    </span>
+                    <span>PNG or JPG · Maximum 5MB</span>
                   </div>
                 )}
               </label>
@@ -277,6 +316,81 @@ function PostResource() {
               </div>
 
               <div className="post-resource-fields">
+                <div className="post-resource-field full">
+                  <label>
+                    <Clock3 size={14} />
+                    Listing duration
+                  </label>
+
+                  <select
+                    value={durationMode}
+                    onChange={(event) =>
+                      setDurationMode(event.target.value)
+                    }
+                    disabled={loading}
+                  >
+                    <option value="custom">
+                      Custom duration
+                    </option>
+                    <option value="permanent">
+                      Permanent
+                    </option>
+                  </select>
+
+                  {durationMode === "custom" && (
+                    <>
+                      <div className="post-resource-fields">
+                        <div className="post-resource-field">
+                          <label>Hours</label>
+
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            inputMode="numeric"
+                            placeholder="0"
+                            value={durationHours}
+                            onChange={(event) =>
+                              setDurationHours(event.target.value)
+                            }
+                            disabled={loading}
+                          />
+                        </div>
+
+                        <div className="post-resource-field">
+                          <label>Minutes</label>
+
+                          <input
+                            type="number"
+                            min="0"
+                            max="59"
+                            step="1"
+                            inputMode="numeric"
+                            placeholder="30"
+                            value={durationMinutes}
+                            onChange={(event) =>
+                              setDurationMinutes(event.target.value)
+                            }
+                            disabled={loading}
+                          />
+                        </div>
+                      </div>
+
+                      <small>
+                        Enter any duration greater than zero.
+                        For example, 2 hours and 30 minutes.
+                      </small>
+                    </>
+                  )}
+
+                  {durationMode === "permanent" && (
+                    <small>
+                      This resource is marked as permanent and
+                      has no duration limit.
+                    </small>
+                  )}
+                </div>
+
                 <div className="post-resource-field full">
                   <label>Resource name</label>
 
@@ -393,8 +507,10 @@ function PostResource() {
                   </label>
 
                   <input
-                    type="text"
-                    placeholder="Enter Amount In INR"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Enter amount in INR"
                     value={borrowingFee}
                     onChange={(event) =>
                       setBorrowingFee(event.target.value)

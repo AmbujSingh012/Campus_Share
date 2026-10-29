@@ -115,7 +115,7 @@ router.get("/", async (req, res) => {
         r.created_at,
         r.borrowed_by,
         r.borrowed_at,
-
+        r.duration,
         owner.name AS postedBy,
         owner.email AS ownerEmail,
         owner.mobile AS ownerMobile,
@@ -481,7 +481,7 @@ router.get("/available", async (req, res) => {
         r.created_at,
         r.borrowed_by,
         r.borrowed_at,
-
+        r.duration,
         owner.name AS postedBy,
         owner.email AS ownerEmail,
         owner.mobile AS ownerMobile,
@@ -568,7 +568,7 @@ router.get("/:id", async (req, res) => {
         r.created_at,
         r.borrowed_by,
         r.borrowed_at,
-
+        r.duration,
         owner.name AS postedBy,
         owner.email AS ownerEmail,
         owner.mobile AS ownerMobile,
@@ -631,6 +631,7 @@ router.post(
         location,
         condition,
         borrowingFee,
+        duration,
       } = req.body;
 
       if (!title || !category) {
@@ -684,34 +685,38 @@ if (req.file) {
 
 console.log("RESOURCE IMAGE:", imageUrl);
 
-      const [result] = await db.execute(
-        `
-        INSERT INTO resources
-        (
-          user_id,
-          title,
-          description,
-          category,
-          location,
-          availability,
-          borrowing_fee,
-          college_id,
-          image_url
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `,
-        [
-          user.id,
-          title.trim(),
-          description || "",
-          category.trim(),
-          location ? location.trim() : null,
-          availability || "Available",
-          Number(borrowingFee || 0),
-          collegeId,
-          imageUrl,
-        ]
-      );
+
+const [result] = await db.execute(
+  `
+  INSERT INTO resources
+  (
+    user_id,
+    title,
+    description,
+    category,
+    location,
+    availability,
+    borrowing_fee,
+    college_id,
+    image_url,
+    duration
+  )
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `,
+  [
+    user.id,
+    title.trim(),
+    description || "",
+    category.trim(),
+    location ? location.trim() : null,
+    availability || "Available",
+    Number(borrowingFee || 0),
+    collegeId,
+    imageUrl,
+    duration || "30 Minutes",
+  ]
+);
+
 
       try {
         await createPostNotifications({
@@ -744,7 +749,7 @@ console.log("RESOURCE IMAGE:", imageUrl);
           r.created_at,
           r.borrowed_by,
           r.borrowed_at,
-
+          r.duration,
           owner.name AS postedBy,
           owner.email AS ownerEmail,
           owner.mobile AS ownerMobile,

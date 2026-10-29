@@ -512,6 +512,7 @@ router.get("/", async (req, res) => {
         t.reward,
         t.status,
         t.deadline,
+        t.duration,
         t.college_id,
         t.created_at,
         u.name AS postedBy,
@@ -1277,6 +1278,7 @@ router.post(
         meeting_time,
         reward,
         deadline,
+         duration,
       } = req.body;
 
       if (
@@ -1346,38 +1348,39 @@ router.post(
 
       const user = users[0];
 
-      const [result] =
-        await db.execute(
-          `
-          INSERT INTO tasks
-          (
-            user_id,
-            title,
-            description,
-            category,
-            location,
-            meeting_time,
-            reward,
-            status,
-            deadline,
-            college_id
-          )
 
-          VALUES
-          (?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)
-          `,
-          [
-            user.id,
-            title.trim(),
-            description || "",
-            category.trim(),
-            location.trim(),
-            meeting_time || null,
-            numericReward,
-            deadline,
-            collegeId,
-          ]
-        );
+const [result] = await db.execute(
+  `
+  INSERT INTO tasks
+  (
+    user_id,
+    title,
+    description,
+    category,
+    location,
+    meeting_time,
+    reward,
+    status,
+    deadline,
+    college_id,
+    duration
+  )
+  VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
+  `,
+  [
+    user.id,
+    title.trim(),
+    description || "",
+    category.trim(),
+    location.trim(),
+    meeting_time || null,
+    numericReward,
+    deadline,
+    collegeId,
+    duration || "30 Minutes",
+  ]
+);
+
 
       try {
         await createPostNotifications({
@@ -1409,6 +1412,7 @@ router.post(
             t.status,
             t.deadline,
             t.college_id,
+            t.duration,
             t.created_at,
             u.name AS postedBy
 
