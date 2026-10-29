@@ -547,13 +547,34 @@ export async function getCommunityMessages(connectionId) {
   return data;
 }
 
-export async function sendCommunityMessage(connectionId, messageText) {
+
+export async function sendCommunityMessage(
+  connectionId,
+  messageText = "",
+  attachment = null
+) {
+  const formData = new FormData();
+
+  if (messageText.trim()) {
+    formData.append("messageText", messageText.trim());
+  }
+
+  if (attachment) {
+    formData.append("attachment", attachment);
+  }
+
+  const headers = getAuthHeaders();
+
+  // The browser must set the multipart Content-Type and its boundary.
+  delete headers["Content-Type"];
+  delete headers["content-type"];
+
   const response = await fetch(
     `${API_BASE_URL}/api/community/connections/${connectionId}/messages`,
     {
       method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ messageText }),
+      headers,
+      body: formData,
     }
   );
 
@@ -564,6 +585,42 @@ export async function sendCommunityMessage(connectionId, messageText) {
   }
 
   return data;
+}
+// =====================================================
+// DOWNLOAD COMMUNITY CHAT ATTACHMENT
+// =====================================================
+
+export async function downloadCommunityAttachment(
+  connectionId,
+  messageId
+) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/community/connections/${connectionId}/messages/${messageId}/attachment`,
+    {
+      headers: {
+        ...(localStorage.getItem("token")
+          ? {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            }
+          : {}),
+      },
+    }
+  );
+
+  if (!response.ok) {
+    let message = "Failed to download attachment";
+
+    try {
+      const data = await response.json();
+      message = data.message || message;
+    } catch {
+      // Keep the default error message.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.blob();
 }
 
 export default API_BASE_URL;
