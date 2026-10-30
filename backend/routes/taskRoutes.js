@@ -1377,7 +1377,7 @@ const [result] = await db.execute(
     numericReward,
     deadline,
     collegeId,
-    duration || "30 Minutes",
+    duration || null,
   ]
 );
 

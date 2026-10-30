@@ -714,7 +714,7 @@ function Tasks() {
   <span>
     <Clock3 size={15} />
     {(() => {
-      const duration = String(task.duration || "30 Minutes").trim();
+      const duration = String(task.duration || "Not specified").trim();
 
       if (duration.toLowerCase() === "permanent") {
         return "Duration: Permanent";

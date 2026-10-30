@@ -164,7 +164,7 @@ export async function createResource(resourceData) {
   );
 formData.append(
   "duration",
-  resourceData.duration || "30 Minutes"
+  resourceData.duration || null
 );
 
 if (resourceData.expiryDate) {

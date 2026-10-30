@@ -713,7 +713,7 @@ const [result] = await db.execute(
     Number(borrowingFee || 0),
     collegeId,
     imageUrl,
-    duration || "30 Minutes",
+    duration || null,
   ]
 );
 
