@@ -29,8 +29,8 @@ function PostResource() {
   const [borrowingFee, setBorrowingFee] = useState("");
 
   const [durationMode, setDurationMode] = useState("custom");
-  const [durationHours, setDurationHours] = useState("0");
-  const [durationMinutes, setDurationMinutes] = useState("30");
+  const [durationHours, setDurationHours] = useState("");
+const [durationMinutes, setDurationMinutes] = useState("");
 
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
@@ -169,8 +169,8 @@ function PostResource() {
       setAvailability(true);
       setBorrowingFee("");
       setDurationMode("custom");
-      setDurationHours("0");
-      setDurationMinutes("30");
+      setDurationHours("");
+setDurationMinutes("");
       setImage(null);
       setImagePreview("");
 
@@ -348,7 +348,7 @@ function PostResource() {
                             min="0"
                             step="1"
                             inputMode="numeric"
-                            placeholder="0"
+                            placeholder="Enter hours"
                             value={durationHours}
                             onChange={(event) =>
                               setDurationHours(event.target.value)
@@ -366,7 +366,7 @@ function PostResource() {
                             max="59"
                             step="1"
                             inputMode="numeric"
-                            placeholder="30"
+                            placeholder="Enter minutes"
                             value={durationMinutes}
                             onChange={(event) =>
                               setDurationMinutes(event.target.value)

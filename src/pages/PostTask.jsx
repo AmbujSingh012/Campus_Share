@@ -32,8 +32,8 @@ function PostTask() {
 
   // Duration: custom hours/minutes or permanent.
   const [durationMode, setDurationMode] = useState("custom");
-  const [durationHours, setDurationHours] = useState("0");
-  const [durationMinutes, setDurationMinutes] = useState("30");
+const [durationHours, setDurationHours] = useState("");
+const [durationMinutes, setDurationMinutes] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -200,8 +200,8 @@ function PostTask() {
       setLocation("");
       setMeetingTime("");
       setDurationMode("custom");
-      setDurationHours("0");
-      setDurationMinutes("30");
+      setDurationHours("");
+setDurationMinutes("");
 
       setTimeout(() => {
         navigate("/tasks");
@@ -427,7 +427,7 @@ function PostTask() {
                             min="0"
                             step="1"
                             inputMode="numeric"
-                            placeholder="0"
+                           placeholder="Enter hours"
                             value={durationHours}
                             onChange={(event) =>
                               setDurationHours(event.target.value)
@@ -445,7 +445,7 @@ function PostTask() {
                             max="59"
                             step="1"
                             inputMode="numeric"
-                            placeholder="30"
+                            placeholder="Enter minutes"
                             value={durationMinutes}
                             onChange={(event) =>
                               setDurationMinutes(event.target.value)

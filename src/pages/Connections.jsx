@@ -395,7 +395,7 @@ function Connections() {
           )}
 
           <p className="community-discover-note">
-            Connection requests require an eligible, verified exchange.
+            You can connect after accepting a task or borrowing a resource.
           </p>
         </section>
 

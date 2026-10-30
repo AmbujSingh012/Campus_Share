@@ -903,6 +903,42 @@ router.post("/:id/borrow", async (req, res) => {
       `,
       [resourceId, resource.user_id, borrowerId, collegeId]
     );
+        // Automatically connect resource owner and borrower.
+
+    const userLow = Math.min(
+      Number(resource.user_id),
+      Number(borrowerId)
+    );
+
+    const userHigh = Math.max(
+      Number(resource.user_id),
+      Number(borrowerId)
+    );
+
+    await connection.execute(
+      `
+      INSERT INTO connections
+      (
+        requester_id,
+        recipient_id,
+        college_id,
+        user_low,
+        user_high,
+        status
+      )
+      VALUES (?, ?, ?, ?, ?, 'accepted')
+      ON DUPLICATE KEY UPDATE
+        status = 'accepted',
+        college_id = VALUES(college_id)
+      `,
+      [
+        resource.user_id,
+        borrowerId,
+        collegeId,
+        userLow,
+        userHigh,
+      ]
+    );
 
     const [borrowedResource] = await connection.execute(
       `

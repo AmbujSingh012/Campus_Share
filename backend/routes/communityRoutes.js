@@ -598,27 +598,24 @@ router.post("/connections/request", async (req, res) => {
       });
     }
 
-    // Check for a completed task with a matching successful payment.
-   const [taskExchanges] = await db.execute(
-  `SELECT t.id
-   FROM tasks t
-   JOIN acceptances a
-     ON a.task_id = t.id
-   JOIN payments p
-     ON p.task_id = t.id
-    AND p.status = 'paid'
-    AND p.payer_id = t.user_id
-    AND p.receiver_id = a.helper_id
-   WHERE t.college_id = ?
-     AND t.status = 'completed'
-     AND a.status = 'accepted'
-     AND a.payment_status = 'paid'
-     AND (
-       (t.user_id = ? AND a.helper_id = ?)
-       OR
-       (t.user_id = ? AND a.helper_id = ?)
-     )
-   LIMIT 1`,
+// A task owner or accepted helper can connect
+// as soon as the task is accepted.
+
+const [taskExchanges] = await db.execute(
+  `
+  SELECT t.id
+  FROM tasks t
+  JOIN acceptances a
+    ON a.task_id = t.id
+  WHERE t.college_id = ?
+    AND a.status = 'accepted'
+    AND (
+      (t.user_id = ? AND a.helper_id = ?)
+      OR
+      (t.user_id = ? AND a.helper_id = ?)
+    )
+  LIMIT 1
+  `,
   [
     context.collegeId,
     context.userId,
@@ -629,25 +626,29 @@ router.post("/connections/request", async (req, res) => {
 );
 
     // A resource exchange qualifies only after the borrower returned it.
-    const [resourceExchanges] = await db.execute(
-      `SELECT reh.id
-       FROM resource_exchange_history reh
-       WHERE reh.college_id = ?
-         AND reh.returned_at IS NOT NULL
-         AND (
-           (reh.owner_id = ? AND reh.borrower_id = ?)
-           OR
-           (reh.owner_id = ? AND reh.borrower_id = ?)
-         )
-       LIMIT 1`,
-      [
-        context.collegeId,
-        context.userId,
-        recipientId,
-        recipientId,
-        context.userId,
-      ]
-    );
+ // Resource owner and borrower can connect
+// immediately after borrowing.
+
+const [resourceExchanges] = await db.execute(
+  `
+  SELECT reh.id
+  FROM resource_exchange_history reh
+  WHERE reh.college_id = ?
+    AND (
+      (reh.owner_id = ? AND reh.borrower_id = ?)
+      OR
+      (reh.owner_id = ? AND reh.borrower_id = ?)
+    )
+  LIMIT 1
+  `,
+  [
+    context.collegeId,
+    context.userId,
+    recipientId,
+    recipientId,
+    context.userId,
+  ]
+);
 
 
 
@@ -709,7 +710,7 @@ router.post("/connections/request", async (req, res) => {
       });
     }
 
-    const userLow = Math.min(context.userId, recipientId);
+ const userLow = Math.min(context.userId, recipientId);
 const userHigh = Math.max(context.userId, recipientId);
 
 const [result] = await db.execute(

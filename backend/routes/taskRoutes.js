@@ -1627,7 +1627,43 @@ router.post(
           activeCollegeId,
         ]
       );
+            // Automatically create an accepted connection
+      // between the task owner and accepted helper.
 
+      const userLow = Math.min(
+        Number(task.user_id),
+        Number(helperId)
+      );
+
+      const userHigh = Math.max(
+        Number(task.user_id),
+        Number(helperId)
+      );
+
+      await connection.execute(
+        `
+        INSERT INTO connections
+        (
+          requester_id,
+          recipient_id,
+          college_id,
+          user_low,
+          user_high,
+          status
+        )
+        VALUES (?, ?, ?, ?, ?, 'accepted')
+        ON DUPLICATE KEY UPDATE
+          status = 'accepted',
+          college_id = VALUES(college_id)
+        `,
+        [
+          task.user_id,
+          helperId,
+          activeCollegeId,
+          userLow,
+          userHigh,
+        ]
+      );
       await connection.commit();
 
       res.json({
