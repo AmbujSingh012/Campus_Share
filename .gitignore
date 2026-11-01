@@ -29,3 +29,4 @@ backups/
 
 # Local Anaconda projects
 anaconda_projects/
+*.pre-*
